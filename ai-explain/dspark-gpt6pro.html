@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="用可交互实验理解 DeepSeek DSpark：投机解码、半自回归草稿与置信度调度。无需深厚的 Transformer 基础。">
+<title>DSpark · 先猜后验，把等待变短</title>
+<style>
+:root{--paper:#f5f5ef;--white:#fff;--ink:#172b2a;--muted:#5d6e68;--line:#dce2d9;--green:#136653;--mint:#c9f4c0;--soft:#e9f1e6;--orange:#ae5635;--peach:#fae7db;--blue:#476995;--dark:#112b29;--darkline:#35514a;--radius:20px;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;--sans:"Inter","Aptos","PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:92px}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.8;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button,a,input,select,summary{-webkit-tap-highlight-color:transparent}a{color:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.4}button,select{color:inherit}button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #4b93dc;outline-offset:4px}button{border:0}h1,h2,h3,h4,p{margin:0}h1,h2,h3,h4{line-height:1.35}svg{max-width:100%;display:block}strong{font-weight:700}.wrap{width:min(1180px,calc(100% - 64px));margin:auto}.mono{font-family:var(--mono)}.muted{color:var(--muted)}.small{font-size:12px;line-height:1.75}.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:1.8px;font-weight:600;text-transform:uppercase}.pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border:1px solid var(--line);border-radius:30px;font-size:11px;line-height:1.7;font-weight:600}.dot{height:6px;width:6px;border-radius:50%;background:var(--green);display:inline-block;flex:none}.cite{font-size:11px;color:var(--green);text-decoration:none;white-space:nowrap;font-weight:500}.cite:hover{text-decoration:underline}.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:var(--green);color:white;border:1px solid var(--green);border-radius:9px;padding:10px 18px;font-weight:600;font-size:13px;text-decoration:none;min-height:42px;transition:background .15s,transform .15s}.btn:hover{background:#0c4e3f;transform:translateY(-1px)}.btn.secondary{background:white;color:var(--ink);border-color:var(--line)}.btn.secondary:hover{background:var(--soft)}.btn.ghost{background:transparent;color:var(--muted);border-color:transparent}.btn.ghost:hover{background:var(--soft)}.btn.mint{background:var(--mint);color:var(--dark);border-color:var(--mint)}.btn.mint:hover{background:#b2e6a8}.btn.icon{padding:8px 13px}.button-row{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.segmented{display:inline-flex;gap:3px;background:#e9ede5;padding:4px;border-radius:10px;max-width:100%;flex-wrap:wrap}.segmented button{background:transparent;color:var(--muted);border-radius:7px;padding:7px 14px;font-size:12px;line-height:1.5;font-weight:600}.segmented button[aria-pressed="true"]{background:white;color:var(--ink);box-shadow:0 2px 6px #152f2810}.section{padding:78px 0;border-top:1px solid var(--line)}.section-head{display:grid;grid-template-columns:1fr 410px;gap:50px;align-items:end;margin-bottom:30px}.section-kicker{display:flex;align-items:center;gap:12px;color:var(--green);margin-bottom:13px;font-size:11px;font-weight:700;letter-spacing:1px}.section-num{height:26px;min-width:30px;display:grid;place-items:center;font-family:var(--mono);border:1px solid var(--green);border-radius:5px;font-size:12px;letter-spacing:0}h2{font-size:30px;letter-spacing:-.8px;font-weight:750}.section-head p{color:var(--muted);font-size:14px;line-height:1.9}.lab{background:white;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}.lab-head{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}.lab-label{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700}.lab-label .dot{background:var(--orange)}.lab-body{padding:26px}.lab-foot{padding:14px 24px;border-top:1px solid var(--line);background:#f9faf6;font-size:12px;color:var(--muted);line-height:1.85}.note{font-size:12px;color:var(--muted);padding:14px 17px;background:var(--soft);border-radius:9px;line-height:1.9}.card{border:1px solid var(--line);background:white;border-radius:15px;padding:25px}.reading-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.detail{border-top:1px solid var(--line);margin-top:18px;padding-top:3px}.detail summary{cursor:pointer;padding:13px 0;font-size:13px;font-weight:650;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}.detail summary::after{content:"＋";font-size:19px;font-weight:400}.detail[open] summary::after{content:"−"}.detail-content{padding:4px 0 12px;font-size:13px;line-height:1.95;color:var(--muted)}.detail-content p+p{margin-top:11px}.formula{font-family:var(--mono);background:#eef2e9;padding:13px 17px;color:var(--ink);border-radius:8px;margin:11px 0;overflow:auto;font-size:13px;line-height:1.9}.token{display:inline-flex;position:relative;align-items:center;justify-content:center;min-height:46px;min-width:48px;padding:5px 13px;border-radius:9px;background:#edf0e8;border:1px solid #dbe1d4;font-weight:650;color:#536558;transition:background .25s,border-color .25s,color .25s,opacity .25s,transform .25s}.token.accept{background:#e0f3d8;border-color:#9ccc92;color:#22583b}.token.reject{background:var(--peach);border-color:#d98b65;color:#954021}.token.trim{border-style:dashed;background:#f6f6f2;color:#7b867b;opacity:.62}.token.direct{background:#e6edf9;border-color:#a4b8d5;color:#3a5987}.token.anchor{background:#fcf0d6;border-color:#dccc9d;color:#80682e}.token.pending{color:#a1aa9c;background:#f6f7f3;border-style:dashed}.token-mark{position:absolute;right:-5px;top:-8px;font-family:var(--mono);font-size:10px;line-height:17px;width:17px;height:17px;border-radius:50%;background:var(--green);color:white;text-align:center}.reject .token-mark{background:var(--orange)}.direct .token-mark{background:var(--blue)}.tokens{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.label{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:10px}.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted)}.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}.legend .green{background:#82bb74}.legend .rust{background:#d88966}.legend .gray{background:#b6bdb0}.legend .blue{background:#91abd1}.range{width:100%;accent-color:var(--green);height:5px;margin:14px 0 10px;cursor:pointer}.range-label{display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:12px}.range-label output{font-family:var(--mono);font-size:13px;font-weight:700}.range-ends{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}select{background:white;border:1px solid var(--line);border-radius:8px;padding:8px 30px 8px 10px;font-size:12px;max-width:100%}.select-label{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.skip-link{position:fixed;top:-100px;left:20px;background:white;padding:10px;z-index:99}.skip-link:focus{top:10px}
+/* Navigation & cover */
+header{position:sticky;top:0;z-index:30;background:#f5f5efee;backdrop-filter:blur(15px);border-bottom:1px solid var(--line)}.nav{height:69px;display:flex;align-items:center;justify-content:space-between;gap:30px}.brand{display:flex;gap:11px;align-items:center;text-decoration:none;flex:none}.brand-mark{width:30px;height:30px;border-radius:7px;background:var(--dark);display:grid;place-items:center;color:var(--mint)}.brand-word{font-size:20px;line-height:1;font-weight:800;letter-spacing:-.7px}.brand-sub{font-size:10px;letter-spacing:1px;line-height:1.2;margin-top:5px;color:var(--muted)}nav{display:flex;gap:22px;align-items:center}nav a{font-size:11px;color:var(--muted);text-decoration:none;white-space:nowrap;line-height:69px;position:relative}nav a:hover,nav a.active{color:var(--green)}nav a.active::after{content:"";height:2px;background:var(--green);position:absolute;bottom:0;left:0;right:0}.nav-end{font-size:11px;color:var(--muted);white-space:nowrap}.nav-progress{height:2px;background:transparent;position:absolute;left:0;right:0;bottom:-2px}.nav-progress span{display:block;width:0;height:100%;background:var(--green)}.hero{padding:60px 0 42px}.hero-grid{display:grid;grid-template-columns:1.03fr 1fr;gap:62px;align-items:center}.hero .eyebrow{color:var(--green);margin-bottom:21px;display:flex;align-items:center;gap:9px}.hero h1{font-size:54px;font-weight:800;letter-spacing:-2px;line-height:1.25}.hero h1 span{color:var(--green)}.hero-desc{max-width:455px;margin:21px 0 25px;font-size:14px;line-height:1.95;color:var(--muted)}.hero-meta{display:flex;gap:20px;margin-top:21px;font-size:11px;color:var(--muted)}.hero-meta span{display:flex;align-items:center;gap:6px}.hero-visual{background:var(--dark);border-radius:22px;padding:27px;color:#eaf1e7;box-shadow:0 15px 40px #143c2a12;position:relative;overflow:hidden}.hero-visual::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#86ad8828 .7px,transparent .7px);background-size:17px 17px;mask-image:linear-gradient(100deg,transparent,#000)}.hero-visual>*{position:relative}.visual-top{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#b3c6b7;margin-bottom:23px;letter-spacing:1px}.visual-top .dot{background:var(--mint)}.mini-context{font-size:12px;margin-bottom:20px;color:#a3b8ae}.mini-context b{color:#e3eddf;font-weight:500}.mini-context span{color:var(--mint);border-bottom:1px solid #9bce8e;padding-bottom:3px;margin-left:3px}.flow-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}.flow-node{background:#1e3933;border:1px solid #4b6654;border-radius:11px;padding:13px 15px;color:#deecd9;text-align:left;font-size:12px;transition:all .2s}.flow-node span{display:block;font-family:var(--mono);font-size:9px;color:#9fba9a;margin-bottom:4px;letter-spacing:1px}.flow-node[aria-pressed="true"]{border-color:var(--mint);box-shadow:0 0 0 1px var(--mint);background:#294b3a}.flow-line{height:20px;display:flex;justify-content:space-around;align-items:center;color:#769175;font-size:13px}.mini-drafts{display:flex;gap:8px;justify-content:center;margin:8px 0 18px}.mini-drafts span{height:37px;min-width:39px;border:1px solid #6a8d68;background:#2b4e3b;border-radius:7px;display:grid;place-items:center;font-size:12px;flex:1}.mini-drafts span:last-child{background:transparent;border-style:dashed;opacity:.42}.hero-explain{min-height:75px;border-top:1px solid var(--darkline);margin-top:18px;padding-top:14px;font-size:12px;color:#bfd0c3;line-height:1.8}.hero-explain strong{color:var(--mint);font-size:12px}.takeaways{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:45px;border-top:1px solid var(--line);padding-top:22px;gap:24px}.takeaway{display:flex;gap:15px;align-items:flex-start}.takeaway-num{font-size:11px;font-family:var(--mono);color:var(--green);margin-top:4px}.takeaway h3{font-size:14px;margin-bottom:5px}.takeaway p{font-size:11px;color:var(--muted);line-height:1.8}
+/* Autoregression */
+.ar-grid{display:grid;grid-template-columns:1fr 300px;gap:35px}.context-box{padding:12px 16px;background:#f4f5ef;border-radius:9px;font-size:13px;margin-bottom:22px;line-height:2}.context-box .tag{font-size:10px;letter-spacing:1px;color:var(--muted);margin-right:16px}.ar-output{display:flex;flex-wrap:wrap;gap:7px;min-height:55px;padding-bottom:6px}.ar-output .token{min-width:45px;padding:6px 11px}.step-rail{display:flex;gap:5px;margin:21px 0 9px}.step-rail span{height:6px;background:#e8ece3;flex:1;border-radius:3px;transition:background .2s}.step-rail span.done{background:var(--green)}.ar-factory{border:1px solid var(--line);border-radius:12px;padding:19px;background:#f8faf5;display:grid;align-content:center;text-align:center;min-height:184px}.factory-label{font-size:11px;color:var(--muted)}.factory-block{background:var(--green);color:white;padding:12px;border-radius:9px;font-size:13px;font-weight:700;margin:12px 0}.factory-block.busy{animation:breathe .65s ease}.factory-out{font-family:var(--mono);font-size:12px;color:var(--green)}.concept-strip{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.concept-strip p{font-size:12px;color:var(--muted)}.concept-strip b{display:block;font-size:13px;color:var(--ink);margin-bottom:5px}
+/* Draft verification */
+.spec-settings{display:grid;grid-template-columns:1fr 1fr;gap:35px;padding:21px 26px;background:#fbfcf8;border-bottom:1px solid var(--line)}.phase-track{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:19px 26px 0}.phase-track button{background:#f0f2ec;border:1px solid #e4e8de;border-radius:8px;padding:10px 5px;font-size:11px;display:flex;gap:7px;align-items:center;justify-content:center;color:var(--muted)}.phase-track button .index{font-family:var(--mono);font-size:10px}.phase-track button.active{color:var(--green);border-color:#95b48c;background:#e9f5e1;font-weight:700}.phase-track button.completed{color:#476842;background:#f2f6ee}.spec-main{display:grid;grid-template-columns:1fr 265px;gap:36px;padding:24px 26px}.spec-lanes{min-width:0}.spec-row{display:grid;grid-template-columns:65px 1fr;gap:13px;margin-bottom:21px;align-items:start}.spec-row>span{font-size:11px;color:var(--muted);padding-top:12px}.spec-row .token{min-height:43px;min-width:45px;padding:5px 11px;font-size:13px}.spec-commentary{padding:20px;background:var(--soft);border:1px solid #d5e4ce;border-radius:12px;align-self:start;min-height:222px}.spec-commentary .eyebrow{font-size:9px;letter-spacing:1.4px;color:var(--green)}.spec-commentary h4{font-size:17px;margin:10px 0}.spec-commentary p{font-size:12px;color:var(--muted);line-height:1.95}.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding-top:17px;border-top:1px solid var(--line)}.stat .val{font-family:var(--mono);font-size:24px;line-height:1.2;font-weight:500;color:var(--green)}.stat .name{font-size:10px;color:var(--muted);margin-top:8px}.spec-controls{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:0 26px 23px;flex-wrap:wrap}.mask-demo{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center}.mask-table{border-collapse:separate;border-spacing:4px;margin:auto;font-size:11px;text-align:center}.mask-table th{padding:2px 8px;font-weight:500}.mask-table td{background:#edf1e6;border-radius:4px;min-width:48px;padding:5px}.mask-table td.allowed{background:#d5e9ce;color:#285d3b}.mask-table td.forbidden{background:#f2f1ed;color:#b9bfb2}.mask-caption{font-size:10px;text-align:center;margin-top:8px}
+/* Semi autoregressive */
+.semi-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}.semi-architecture{padding:25px;background:#f6f8f1;border-right:1px solid var(--line)}.semi-sampling{padding:25px}.node-caption{text-align:center;font-size:10px;color:var(--muted)}.backbone{padding:16px 14px;background:var(--green);color:#ecf4e8;border-radius:10px;text-align:center;margin:12px 0 0;font-size:13px;position:relative}.backbone span{display:block;color:#c1d2be;font-size:10px;margin-top:4px}.backbone-grid{display:flex;justify-content:space-around;gap:8px}.backbone-grid .logit{font-family:var(--mono);background:white;border:1px solid var(--line);border-radius:7px;flex:1;text-align:center;padding:7px 0;font-size:12px}.semi-arrows{display:flex;justify-content:space-around;color:#8aa17d;font-size:14px;height:25px;align-items:center}.seq-head{padding:12px;text-align:center;border:1px solid #9abd8b;color:#306442;background:#e2f1d9;border-radius:8px;font-size:12px;margin:13px 0}.seq-head.off{color:#798675;background:#f0f2e9;border-style:dashed}.seq-output{display:flex;align-items:center;justify-content:center;gap:15px;font-family:var(--mono);font-size:11px}.seq-output .arr{color:var(--green);font-size:17px}.seq-output.off .arr{color:#bbc4b5}.semi-caption{font-size:11px;color:var(--muted);margin-top:16px;min-height:42px}.choice-row{display:flex;gap:10px;margin:12px 0 22px}.choice{background:#f4f6ef;border:1px solid var(--line);border-radius:9px;padding:8px 24px;min-height:43px;font-weight:600}.choice[aria-pressed="true"]{border-color:var(--green);background:#e5f1df;color:var(--green);box-shadow:0 0 0 1px var(--green)}.prob-row{display:grid;grid-template-columns:42px 1fr 44px;gap:12px;align-items:center;font-size:12px;margin:12px 0}.prob-track{height:17px;background:#eef1e7;border-radius:3px;overflow:hidden}.prob-fill{height:100%;background:var(--green);border-radius:3px;transition:width .28s}.prob-fill.alt{background:#a6b79c}.prob-result{background:#f5f7f0;border-radius:10px;padding:13px 16px;margin:19px 0;min-height:56px;font-size:12px}.prob-result strong{font-size:16px;margin-left:8px}.prob-result.fail{background:var(--peach)}.semi-bottom{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}.mini-explain h4{font-size:13px;margin-bottom:7px}.mini-explain p{font-size:12px;color:var(--muted)}
+/* Scheduling */
+.dark-section{background:var(--dark);color:#e6eee3;border-color:var(--dark)}.dark-section .section-kicker{color:var(--mint)}.dark-section .section-num{border-color:#7da673}.dark-section .section-head p{color:#afc3b4}.dark-section .cite{color:var(--mint)}.dark-section .lab{border-color:#46634f;background:#18332d}.dark-section .lab-head,.dark-section .lab-foot{border-color:#395143}.dark-section .lab-label .dot{background:var(--mint)}.dark-section .lab-foot{background:#142f28;color:#bdd0bc}.dark-section .segmented{background:#294039}.dark-section .segmented button{color:#b3c6b1}.dark-section .segmented button[aria-pressed="true"]{background:#c9f4c0;color:#214728}.scheduler-grid{display:grid;grid-template-columns:265px 1fr}.scheduler-settings{padding:24px;border-right:1px solid #395143;background:#152f29}.scheduler-settings .range-label{color:#d5e2ce}.scheduler-settings .range-ends{color:#a6b7a1}.dark-section .range{accent-color:var(--mint)}.scheduler-settings select{background:#1f3b30;color:#dce8d6;border-color:#496143;width:100%;margin-top:10px}.scheduler-settings .label{color:#a2b79f;margin-top:28px;margin-bottom:0}.load-status{margin-top:17px;font-size:11px;color:var(--mint);display:flex;gap:7px;align-items:center}.load-status .dot{background:var(--mint)}.sched-hint{font-size:11px;color:#aec2a9;margin-top:23px;padding-top:18px;border-top:1px solid #395143;line-height:1.9}.scheduler-main{padding:22px 26px}.request-grid-head{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#a1b69c;margin-bottom:20px}.request-row{display:grid;grid-template-columns:100px repeat(5,minmax(0,1fr)) 52px;gap:7px;align-items:center;margin-bottom:12px}.request-name{font-size:11px;line-height:1.6}.request-name small{display:block;font-size:9px;color:#90ab8e;font-family:var(--mono)}.conf-cell{background:#25432f;border:1px solid #4a6e42;border-radius:7px;min-width:0;min-height:56px;color:#d7f0c7;padding:5px 3px;font-family:var(--mono);font-size:15px;position:relative;transition:all .2s}.conf-cell small{display:block;font-size:9px;color:#a3c198;line-height:1.3}.conf-cell.pruned{background:#1b352c;border:1px dashed #456042;color:#a9baa3;opacity:1}.conf-cell.selected{outline:2px solid var(--mint);outline-offset:2px}.conf-cell:hover{transform:translateY(-2px)}.request-len{font-size:10px;color:var(--mint);text-align:right}.request-len b{font-family:var(--mono);font-size:20px;font-weight:500}.conf-inspector{margin-top:22px;padding:12px 16px;min-height:73px;background:#234031;border-radius:8px;font-size:11px;color:#bfd6b1;line-height:1.8}.conf-inspector strong{color:var(--mint)}.conf-inspector code{font-family:var(--mono);font-size:10px;display:block;color:#a7c398;margin-top:5px;overflow-wrap:anywhere}.scheduler-metrics{border-top:1px solid #395143;display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:20px 26px;background:#183129}.scheduler-metrics .stat .val{color:var(--mint);font-size:26px}.scheduler-metrics .stat .name{color:#a8bea2}.scheduler-metrics .stat .sub{font-size:10px;color:#91aa8d;margin-top:7px}.sched-compare{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:24px}.throughput-card{border:1px solid #496346;border-radius:13px;padding:20px 22px}.throughput-card h4{font-size:12px;color:#aec4a5;font-weight:500}.throughput-card .top{display:flex;justify-content:space-between;align-items:center}.throughput-card .large{font-family:var(--mono);font-size:31px;color:var(--mint);margin-top:10px;line-height:1.3}.throughput-card .large small{font-size:10px;color:#a6ba9f;font-family:var(--sans)}.throughput-card .calc{font-family:var(--mono);font-size:11px;color:#a9bf9f;margin-top:9px}.compare-track{height:8px;background:#2b4434;border-radius:3px;margin-top:15px;overflow:hidden}.compare-track span{display:block;height:100%;width:80%;background:#769e68;transition:width .2s}.throughput-card.emphasized{background:#21402e}.throughput-card.emphasized .compare-track span{background:var(--mint)}.dark-section .detail{border-color:#385441}.dark-section .detail-content{color:#b2c7aa}.dark-section .formula{background:#234032;color:#d9edd0}.dark-section .muted{color:#acc0a6}.dark-section .note{background:#213b2e;color:#b5caa9}.scheduler-notes{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:24px}
+/* Exact sampling */
+.sampling-grid{display:grid;grid-template-columns:285px 1fr;gap:34px}.sampling-controls{border-right:1px solid var(--line);padding-right:28px}.sampling-label{font-size:12px;line-height:1.9;color:var(--muted);margin-bottom:16px}.sampling-label strong{color:var(--ink)}.sample-legend{font-size:10px;display:flex;flex-wrap:wrap;gap:16px;margin-bottom:18px;color:var(--muted)}.sample-legend i{width:8px;height:8px;display:inline-block;margin-right:5px;border-radius:1px}.dist-row{display:grid;grid-template-columns:38px 1fr 38px;gap:13px;margin-bottom:18px;align-items:center}.dist-title{font-size:13px;font-weight:650}.dist-bars{display:grid;gap:6px}.dist-bar{height:12px;position:relative;background:#eef1e8;border-radius:2px}.dist-bar span{height:100%;display:block;border-radius:2px;transition:width .3s;background:#bac9af}.dist-bar span.target{background:var(--green)}.dist-bar span.empirical{background:#ddae89}.dist-num{font-family:var(--mono);font-size:10px;line-height:18px;text-align:right}.dist-num span{display:block}.sample-status{font-size:12px;padding:13px 16px;border-radius:8px;background:#f4f6ed;min-height:51px;margin-top:17px}.sample-stats{font-size:11px;line-height:1.9;margin-top:19px;color:var(--muted)}.sample-stats strong{color:var(--green);font-family:var(--mono)}
+/* Evidence / quiz / footer */
+.evidence-top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px;flex-wrap:wrap}.evidence-top .small{max-width:470px}.evidence-cards{display:grid;grid-template-columns:1fr 1fr;gap:20px}.evidence-card{border:1px solid var(--line);border-radius:16px;padding:25px;background:white;position:relative;overflow:hidden}.evidence-card::after{content:"";width:110px;height:110px;border:1px solid #e8eee0;border-radius:50%;position:absolute;right:-45px;top:-45px;box-shadow:0 0 0 25px #f8faf4,0 0 0 26px #e8eee0;pointer-events:none}.evidence-card h3{font-size:16px}.evidence-number{font-family:var(--mono);font-size:48px;line-height:1.4;letter-spacing:-2px;color:var(--green);margin:17px 0 4px}.evidence-label{font-size:13px;font-weight:650}.evidence-condition{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.9;max-width:420px}.quiz-section{background:#eaf0e2}.quiz-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}.quiz-card{background:white;border:1px solid #d1dcc8;border-radius:13px;padding:22px;display:flex;flex-direction:column;align-items:flex-start}.quiz-card .q-num{font-family:var(--mono);font-size:10px;color:var(--green);margin-bottom:13px}.quiz-card h3{font-size:14px;line-height:1.7;min-height:50px;margin-bottom:19px}.quiz-options{display:grid;gap:8px;width:100%}.quiz-options button{background:#f2f5ec;border:1px solid var(--line);padding:9px 13px;border-radius:7px;text-align:left;font-size:12px;line-height:1.7}.quiz-options button.correct{background:#e0f2d6;border-color:#83ae71;color:#25543b}.quiz-options button.wrong{background:var(--peach);border-color:#cf9d7b;color:#9b4c31}.quiz-feedback{font-size:11px;color:var(--muted);line-height:1.9;margin-top:14px;min-height:65px}.quiz-score{display:flex;gap:10px;align-items:center;font-size:12px}.score-dots{display:flex;gap:5px}.score-dots i{height:7px;width:7px;border-radius:50%;background:#c1ceba}.score-dots i.done{background:var(--green)}.summary-card{margin-top:28px;padding:22px 27px;border-radius:12px;background:var(--green);color:white;display:grid;grid-template-columns:36px 1fr;gap:16px;align-items:center}.summary-card p{font-size:14px;line-height:1.9}.summary-card b{color:var(--mint)}.sources{padding:47px 0}.sources-head{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:24px}.sources h2{font-size:20px}.source-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px 30px}.source{display:grid;grid-template-columns:22px 1fr;gap:9px;padding:13px 0;border-top:1px solid var(--line);font-size:11px;line-height:1.85;scroll-margin-top:100px}.source>span{font-family:var(--mono);color:var(--green)}.source a{font-weight:600;text-decoration:none}.source a:hover{text-decoration:underline;color:var(--green)}.source p{font-size:10px;color:var(--muted);margin-top:5px}.source:target{background:var(--soft);border-radius:5px}.footer{border-top:1px solid var(--line);padding:24px 0 35px;display:flex;justify-content:space-between;gap:25px;font-size:10px;color:var(--muted)}.footer strong{color:var(--ink)}.back-top{position:fixed;bottom:22px;right:24px;width:36px;height:36px;border:1px solid #bbc8b4;border-radius:9px;background:#f9faf3dd;color:var(--green);display:grid;place-items:center;font-size:18px;text-decoration:none;z-index:15}.fade-in{animation:appear .35s ease}@keyframes appear{from{opacity:.3;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}@keyframes breathe{50%{background:#469254;box-shadow:0 0 0 5px #cce5c8}}
+@media(min-width:1500px){.hero{padding-top:78px;padding-bottom:50px}.hero h1{font-size:60px}.hero-visual{padding:32px}}
+@media(max-width:1100px){.wrap{width:calc(100% - 44px)}.hero-grid{gap:30px}.hero h1{font-size:45px}nav{gap:14px}nav a{font-size:10px}.nav-end{display:none}.section-head{grid-template-columns:1fr 360px;gap:25px}.request-row{grid-template-columns:80px repeat(5,minmax(0,1fr)) 42px;gap:5px}.scheduler-grid{grid-template-columns:240px 1fr}.scheduler-main{padding:22px 20px}.conf-cell{font-size:13px}.ar-grid{grid-template-columns:1fr 240px}.spec-main{grid-template-columns:1fr 225px;gap:25px}}
+@media(max-width:850px){.hero-grid{grid-template-columns:1fr 1fr;gap:25px}.hero h1{font-size:37px;letter-spacing:-1px}.hero-desc{font-size:13px}.hero-visual{padding:19px}.hero .eyebrow{font-size:9px;letter-spacing:1px}.hero-meta{gap:12px;font-size:10px}.takeaways{gap:15px}.section-head{grid-template-columns:1fr;gap:16px}.section-head p{max-width:640px}.section{padding:60px 0}.ar-grid{grid-template-columns:1fr 210px;gap:22px}.spec-main{grid-template-columns:1fr}.spec-commentary{min-height:auto}.spec-commentary p{min-height:45px}.spec-commentary h4{margin:5px 0}.scheduler-grid{grid-template-columns:1fr}.scheduler-settings{border-right:0;border-bottom:1px solid #395143;display:grid;grid-template-columns:1fr 1fr;gap:20px}.scheduler-settings .label{margin-top:0}.sched-hint{grid-column:1/-1;margin-top:0;padding-top:12px}.sampling-grid{grid-template-columns:230px 1fr;gap:23px}.quiz-card{padding:17px}.quiz-card h3{font-size:13px}.quiz-options button{font-size:11px}.evidence-number{font-size:40px}}
+@media(max-width:650px){html{scroll-padding-top:109px}.wrap{width:calc(100% - 34px)}.nav{height:auto;min-height:64px;flex-wrap:wrap;gap:0;padding-top:14px}.brand{margin-bottom:12px}.brand-sub{display:none}.brand-word{font-size:19px}.brand-mark{width:27px;height:27px}nav{width:100%;justify-content:space-between;gap:10px;border-top:1px solid var(--line);overflow:auto}nav a{font-size:10px;line-height:36px}.hero{padding-top:36px;padding-bottom:32px}.hero-grid{grid-template-columns:1fr;gap:31px}.hero h1{font-size:43px;line-height:1.25}.hero-desc{font-size:14px;max-width:none}.hero .eyebrow{margin-bottom:17px;font-size:9px}.hero-visual{padding:23px}.hero-meta{font-size:10px}.hero-explain{min-height:76px}.takeaways{margin-top:30px;grid-template-columns:1fr;gap:17px}.takeaway h3{font-size:13px;margin-bottom:2px}.takeaway p{font-size:11px}.section{padding:44px 0}.section-head{gap:14px;margin-bottom:23px}.section-head p{font-size:13px}h2{font-size:25px;letter-spacing:-.7px}.lab-head{padding:15px 17px}.lab-body{padding:20px 17px}.lab-foot{padding:13px 17px;font-size:11px}.ar-grid{grid-template-columns:1fr;gap:20px}.ar-factory{min-height:auto;padding:14px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between}.factory-label{font-size:10px}.factory-block{font-size:11px;padding:10px;margin:0}.factory-out{font-size:10px}.ar-output .token{font-size:12px;padding:5px 9px;min-width:36px;min-height:42px}.concept-strip{grid-template-columns:1fr;gap:13px}.spec-settings{padding:20px 17px;grid-template-columns:1fr;gap:15px}.spec-settings .select-label{justify-content:space-between}.phase-track{padding:17px 17px 0;gap:5px}.phase-track button{font-size:10px;gap:5px;padding:9px 3px}.spec-main{padding:22px 17px;gap:23px}.spec-row{grid-template-columns:44px 1fr;gap:8px}.spec-row>span{font-size:10px}.spec-row .tokens{gap:6px}.spec-row .token{font-size:12px;min-height:38px;min-width:34px;padding:5px 8px}.spec-controls{padding:0 17px 20px}.stat-row{gap:10px}.stat .val{font-size:22px}.stat .name{font-size:9px}.spec-commentary{padding:16px}.spec-commentary h4{font-size:16px}.mask-demo{grid-template-columns:1fr;gap:20px}.semi-grid{grid-template-columns:1fr}.semi-architecture{border-right:0;border-bottom:1px solid var(--line);padding:23px 20px}.semi-sampling{padding:23px 20px}.semi-bottom{grid-template-columns:1fr;gap:17px}.reading-grid{grid-template-columns:1fr}.lab-head .segmented button{font-size:11px;padding:6px 12px}.scheduler-settings{padding:21px 17px;grid-template-columns:1fr}.scheduler-main{padding:20px 12px}.scheduler-settings select{margin-top:6px}.scheduler-settings .label{margin-top:0}.request-grid-head{font-size:9px;gap:10px}.request-row{grid-template-columns:63px repeat(5,minmax(0,1fr)) 32px;gap:4px}.request-name{font-size:10px}.request-name small{font-size:8px}.conf-cell{font-size:11px;min-height:48px;padding:5px 1px;border-radius:5px}.conf-cell small{font-size:8px}.request-len{font-size:8px}.request-len b{font-size:16px}.conf-inspector{padding:11px 12px;font-size:10px}.conf-inspector code{font-size:9px}.scheduler-metrics{padding:19px 15px;gap:8px}.scheduler-metrics .stat .val{font-size:22px}.scheduler-metrics .stat .name{font-size:9px}.scheduler-metrics .stat .sub{font-size:8px}.sched-compare{gap:12px}.throughput-card{padding:17px 14px}.throughput-card h4{font-size:11px}.throughput-card .large{font-size:26px}.throughput-card .large small{display:block;margin-top:4px}.throughput-card .calc{font-size:9px}.throughput-card .top .pill{padding:2px 5px;font-size:8px}.scheduler-notes{grid-template-columns:1fr;gap:0}.sampling-grid{grid-template-columns:1fr;gap:25px}.sampling-controls{border-right:0;border-bottom:1px solid var(--line);padding-right:0;padding-bottom:21px}.sampling-label{font-size:12px}.sample-stats{margin-top:13px}.sampling-controls .button-row{margin-top:15px}.dist-row{gap:9px}.evidence-cards{gap:13px;grid-template-columns:1fr}.evidence-card{padding:22px}.evidence-number{font-size:45px}.quiz-grid{grid-template-columns:1fr;gap:14px}.quiz-card{padding:21px}.quiz-card h3{min-height:0;margin-bottom:14px;font-size:14px}.quiz-feedback{min-height:0}.quiz-options button{font-size:12px}.summary-card{padding:19px;gap:12px;grid-template-columns:25px 1fr}.summary-card p{font-size:12px}.source-grid{grid-template-columns:1fr}.sources-head{align-items:start;flex-direction:column;gap:9px}.sources{padding:36px 0}.footer{flex-direction:column;gap:11px;padding-bottom:40px}.back-top{bottom:14px;right:12px;width:31px;height:31px}.button-row .btn{font-size:12px;padding:9px 13px}.small{font-size:11px}.detail-content{font-size:12px}.formula{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+@media print{header,.back-top,button,input,select,.quiz-section{display:none!important}.wrap{width:100%}.hero,.section{padding:22px 0;break-inside:avoid}.hero-grid{gap:22px}.hero h1{font-size:34px}.lab,.card{break-inside:avoid}body{background:white;font-size:11px}.dark-section{print-color-adjust:exact;-webkit-print-color-adjust:exact}.source-grid{grid-template-columns:1fr}h2{font-size:23px}.hero-visual{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#basics">跳到正文</a>
+<header>
+ <div class="wrap nav">
+  <a class="brand" href="#top" aria-label="DSpark 原理指南首页"><span class="brand-mark" aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M13.5 2 5 13h6l-1 9 9-12h-6l.5-8Z" fill="currentColor"/></svg></span><span><span class="brand-word">DSpark</span><span class="brand-sub" style="display:block">可交互原理指南</span></span></a>
+  <nav aria-label="章节导航"><a href="#basics">01 为什么慢</a><a href="#speculation">02 先猜后验</a><a href="#semi">03 连贯起草</a><a href="#scheduler">04 聪明验证</a><a href="#quality">05 质量保证</a><a href="#evidence">06 实际收益</a></nav>
+  <a href="#sources" class="nav-end" style="text-decoration:none">论文与来源 ↗</a>
+ </div><div class="nav-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+</header>
+<main id="top">
+<section class="hero wrap" aria-labelledby="hero-title">
+ <div class="hero-grid">
+  <div>
+   <div class="eyebrow"><span class="dot"></span> DEEPSEEK RESEARCH / EXPLAINED</div>
+   <h1 id="hero-title">先猜后验，<br>把<span>等待</span>变短。</h1>
+   <p class="hero-desc">DSpark 是一种<strong style="color:var(--ink)">投机解码加速框架</strong>：先快速准备一小段草稿，再由原来的大模型把关。它让草稿接得更连贯，也让每一份验证预算用得更划算。 <a class="cite" href="#ref-dspark">[1]</a></p>
+   <div class="button-row"><a class="btn" href="#basics">开始交互探索 <span aria-hidden="true">↓</span></a><a class="btn ghost" href="#scheduler">直接体验调度器 ↗</a></div>
+   <div class="hero-meta"><span>◷ 约 10 分钟</span><span>⌘ 无需代码基础</span><span>◉ 可离线体验</span></div>
+  </div>
+  <div class="hero-visual" aria-label="DSpark 流程概览，点击四个节点阅读说明">
+   <div class="visual-top"><span>ONE DECODING CYCLE</span><span><span class="dot"></span> 交互示意</span></div>
+   <div class="mini-context">已确定的上下文 <b>早餐我准备</b><span>喝</span></div>
+   <div class="flow-pair">
+    <button class="flow-node" data-hero="0" aria-pressed="true"><span>01 / PARALLEL</span>并行骨干 · 一起算</button>
+    <button class="flow-node" data-hero="1" aria-pressed="false"><span>02 / SEQUENTIAL</span>轻量顺序头 · 接得上</button>
+   </div>
+   <div class="flow-line" aria-hidden="true"><span>↓</span><span>↓</span></div>
+   <div class="mini-drafts" aria-label="示例候选 token"><span>一</span><span>杯</span><span>热</span><span>牛奶</span><span>。</span></div>
+   <div class="flow-pair">
+    <button class="flow-node" data-hero="2" aria-pressed="false"><span>03 / SCHEDULE</span>置信度调度 · 选多长</button>
+    <button class="flow-node" data-hero="3" aria-pressed="false"><span>04 / VERIFY</span>目标模型 · 最后把关</button>
+   </div>
+   <div class="hero-explain" id="hero-explain" aria-live="polite"><strong>① 先把昂贵的活并行做完。</strong><br>草稿骨干一次计算多个位置的基础分数；这还不是最终提交给用户的文本。</div>
+  </div>
+ </div>
+ <div class="takeaways">
+  <div class="takeaway"><span class="takeaway-num">A /</span><div><h3>不是一个全新的“大脑”</h3><p>原模型搭配额外的投机解码模块，不是用小模型替换它。 <a class="cite" href="#ref-model">[2]</a></p></div></div>
+  <div class="takeaway"><span class="takeaway-num">B /</span><div><h3>不只是“一次猜很多”</h3><p>重点是让草稿更连贯，并减少不划算的验证。 <a class="cite" href="#ref-dspark">[1 §3]</a></p></div></div>
+  <div class="takeaway"><span class="takeaway-num">C /</span><div><h3>下面是实验，不是跑分</h3><p>所有按钮在本地运行；教学参数与论文实测分开展示。</p></div></div>
+ </div>
+</section>
+
+<section class="section" id="basics" aria-labelledby="basics-title"><div class="wrap">
+ <div class="section-head"><div><div class="section-kicker"><span class="section-num">01</span> 先补一块拼图 · AUTOREGRESSION</div><h2 id="basics-title">Transformer 会并行，<br>为什么生成时还要等？</h2></div><p>这里讨论自回归文本生成。模型根据<strong>已经确定的文本</strong>预测下一个 token，再把它接回上下文。后一个位置需要知道前面究竟选了什么。 <a class="cite" href="#ref-google">[3]</a></p></div>
+ <div class="lab">
+  <div class="lab-head"><div class="lab-label"><span class="dot"></span> 实验 01 · 亲手生成一句话</div><span class="pill">教学分词 · 非真实模型推理</span></div>
+  <div class="lab-body">
+   <div class="ar-grid"><div>
+    <div class="context-box"><span class="tag">用户输入</span>用一句话描述一只猫。</div>
+    <div class="label">已生成的 token <span class="mono" id="ar-count">0 / 7</span></div>
+    <div class="ar-output" id="ar-output" aria-live="polite"></div>
+    <div class="step-rail" id="ar-rail" aria-hidden="true"></div>
+    <div class="small muted" id="ar-caption">点击一次，就让目标模型前进一步。</div>
+   </div><div class="ar-factory"><div class="factory-label">读取已确定的上下文</div><div class="factory-block" id="ar-factory">目标 Transformer</div><div class="factory-out" id="ar-pass">前向计算 0 次</div></div></div>
+   <div class="button-row" style="margin-top:23px"><button class="btn" id="ar-step">生成下一个 token →</button><button class="btn secondary" id="ar-play">▶ 连续播放</button><button class="btn ghost" id="ar-reset">↺ 重置</button></div>
+  </div>
+  <div class="lab-foot"><strong>关键区别：</strong>“模型内部能并行计算”，不等于“还没选出的未来文本也能直接确定”。token 是模型处理文本的片段，不必恰好等于一个字或一个词；这里人为切分以方便观察。 <a class="cite" href="#ref-google">[3]</a></div>
+ </div>
+ <div class="concept-strip"><div><b>慢的不只是算术，还包括等依赖。</b><p>逐 token 解码会重复调用大模型；低负载时，计算单元也可能吃不满，内存带宽成为瓶颈。 <a class="cite" href="#ref-google">[3]</a></p></div><div><b>那就先提出一个“可能的未来”。</b><p>一旦候选文本已经写好，大模型便能一次评估多个候选位置。下一节把“生成”与“验证”拆开看。 <a class="cite" href="#ref-spec">[4]</a></p></div></div>
+</div></section>
+
+<section class="section" id="speculation" aria-labelledby="spec-title"><div class="wrap">
+ <div class="section-head"><div><div class="section-kicker"><span class="section-num">02</span> 理解底座 · SPECULATIVE DECODING</div><h2 id="spec-title">小助手起草，<br>大模型最后把关。</h2></div><p>先看一轮“草稿 → 调度 → 验证 → 输出”。下面采用<strong>固定的贪心参考结果</strong>演示；不相符的第一个候选会截断整段后缀。随机采样的严格规则放在第 05 节。 <a class="cite" href="#ref-spec">[4]</a></p></div>
+ <div class="lab">
+  <div class="lab-head"><div class="lab-label"><span class="dot"></span> 实验 02 · 观察一轮解码</div><span class="pill">可调参数 · 贪心教学版</span></div>
+  <div class="spec-settings">
+   <div><label class="range-label" for="verify-length">本轮送验的草稿长度 <output id="verify-length-out" for="verify-length">5 个</output></label><input class="range" type="range" id="verify-length" min="0" max="5" value="5"><div class="range-ends"><span>0 · 不投机</span><span>5 · 验证全部草稿</span></div></div>
+   <label class="select-label" for="reject-at">让第几个候选不匹配？<select id="reject-at"><option value="1">第 1 个</option><option value="2">第 2 个</option><option value="3" selected>第 3 个</option><option value="4">第 4 个</option><option value="5">第 5 个</option><option value="6">全部匹配</option></select></label>
+  </div>
+  <div class="phase-track" aria-label="跳到解码阶段"><button data-phase="1"><span class="index">01</span> 起草</button><button data-phase="2"><span class="index">02</span> 调度</button><button data-phase="3"><span class="index">03</span> 验证</button><button data-phase="4"><span class="index">04</span> 输出</button></div>
+  <div class="spec-main"><div class="spec-lanes">
+   <div class="context-box" style="margin-bottom:24px"><span class="tag">已确定</span>早餐我准备 <span class="token anchor" style="min-height:28px;min-width:30px;padding:0 6px;font-size:12px">喝</span> <span class="small muted">← 本轮锚点</span></div>
+   <div class="spec-row"><span>草稿</span><div class="tokens" id="spec-draft" aria-label="草稿候选"></div></div>
+   <div class="spec-row"><span>新输出</span><div class="tokens" id="spec-output" aria-live="polite"></div></div>
+   <div class="stat-row"><div class="stat"><div class="val" id="spec-accepted">—</div><div class="name">接受的草稿 token</div></div><div class="stat"><div class="val" id="spec-new">—</div><div class="name">本轮新增 token</div></div><div class="stat"><div class="val" id="spec-batch">—</div><div class="name">送入目标模型的位置数</div></div></div>
+  </div><aside class="spec-commentary" aria-live="polite"><div class="eyebrow" id="spec-stage-label">READY WHEN YOU ARE</div><h4 id="spec-stage-title">先选条件，再看过程。</h4><p id="spec-stage-desc">试试“第 3 个不匹配”。留意第 4、5 个候选：即使它们看起来不错，也不能越过断点被保留。</p></aside></div>
+  <div class="spec-controls"><div class="button-row"><button class="btn" id="spec-play">▶ 播放一轮</button><button class="btn secondary" id="spec-next">下一步 →</button><button class="btn ghost" id="spec-reset">↺</button></div><div class="legend"><span><i class="green"></i>接受</span><span><i class="rust"></i>拒绝</span><span><i class="gray"></i>舍弃</span><span><i class="blue"></i>目标模型补出</span></div></div>
+  <div class="lab-foot"><strong>注意：</strong>拒绝不等于“事实错误”，只是不满足该次解码的接受规则。首次拒绝时，从对应分布补出一个 token；全接受时再补一个 bonus token。一次目标前向可以推进多步，但不等于只付出一个 token 的计算量。 <a class="cite" href="#ref-spec">[4]</a></div>
+ </div>
+ <details class="detail"><summary>候选之间仍有依赖，为什么大模型能一次验证？</summary><div class="detail-content mask-demo"><div><p><strong>候选已经是已知输入</strong>，不需要等模型逐个生成。对“喝｜一｜杯｜热”，各位置能同时计算自己的下一 token 分布；因果注意力只让它们读取左边。</p><p>例如，“杯”对应的分布在假设前缀“喝一”成立时计算。如果“一”被拒绝，“杯”及后面的计算就不能沿用。<strong>计算可以并行，接受必须形成连续前缀。</strong> <a class="cite" href="#ref-spec">[4]</a></p></div><div><table class="mask-table" aria-label="因果注意力示意表，行只能读取自身及左侧输入"><thead><tr><th>输入位置</th><th>喝</th><th>一</th><th>杯</th><th>热</th></tr></thead><tbody><tr><th>喝 → 预测一</th><td class="allowed">可读</td><td class="forbidden">×</td><td class="forbidden">×</td><td class="forbidden">×</td></tr><tr><th>一 → 预测杯</th><td class="allowed">可读</td><td class="allowed">可读</td><td class="forbidden">×</td><td class="forbidden">×</td></tr><tr><th>杯 → 预测热</th><td class="allowed">可读</td><td class="allowed">可读</td><td class="allowed">可读</td><td class="forbidden">×</td></tr><tr><th>热 → 预测牛奶</th><td class="allowed">可读</td><td class="allowed">可读</td><td class="allowed">可读</td><td class="allowed">可读</td></tr></tbody></table><div class="mask-caption">示意：省略更早上下文。一个前向同时计算多行。</div></div></div></details>
+</div></section>
+
+<section class="section" id="semi" aria-labelledby="semi-title"><div class="wrap">
+ <div class="section-head"><div><div class="section-kicker"><span class="section-num">03</span> DSPARK 创新一 · SEMI-AUTOREGRESSIVE</div><h2 id="semi-title">并行做重活，<br>顺序做轻活。</h2></div><p>纯并行草稿虽然快，但后一个位置不知道前一个位置<strong>实际采样了什么</strong>，可能把两种合理说法拼坏。DSpark 加入很轻的顺序模块，补上块内依赖。 <a class="cite" href="#ref-dspark">[1 §3.1]</a></p></div>
+ <div class="lab">
+  <div class="lab-head"><div class="lab-label"><span class="dot"></span> 实验 03 · 让后一个词接得上</div><div class="segmented" aria-label="选择草稿架构"><button data-semi="parallel" aria-pressed="false">纯并行</button><button data-semi="markov" aria-pressed="true">DSpark · Markov 头</button></div></div>
+  <div class="semi-grid"><div class="semi-architecture">
+   <div class="node-caption">目标模型的上下文特征 + 锚点 / 占位输入</div>
+   <div class="backbone">并行草稿骨干 <span>一次前向 · 计算多个位置的基础分数</span></div>
+   <div class="semi-arrows" aria-hidden="true"><span>↓</span><span>↓</span><span>↓</span><span>↓</span></div>
+   <div class="backbone-grid" aria-label="四个位置的基础 logits"><span class="logit">U₁</span><span class="logit">U₂</span><span class="logit">U₃</span><span class="logit">U₄</span></div>
+   <div class="seq-head" id="seq-head">轻量顺序头：前一个 token → 当前分数偏置</div>
+   <div class="seq-output" id="seq-output"><span>x₁</span><span class="arr">→</span><span>x₂</span><span class="arr">→</span><span>x₃</span><span class="arr">→</span><span>x₄</span></div>
+   <p class="semi-caption" id="semi-caption">重的 Transformer 不必逐位置重跑；只让很轻的头从左到右工作。</p>
+  </div><div class="semi-sampling">
+   <div class="label">简化场景：回答对方的感谢，只允许两种搭配</div><div class="small muted">“没｜问题” 或 “不｜客气”。下面的概率为人为设定。</div>
+   <div class="label" style="margin-top:19px">① 假设第一个位置已经选中</div>
+   <div class="choice-row" aria-label="第一个词"><button class="choice" data-first="没" aria-pressed="true">没</button><button class="choice" data-first="不" aria-pressed="false">不</button></div>
+   <div class="label">② 第二个位置如何分配概率？</div>
+   <div class="prob-row"><span>问题</span><div class="prob-track"><div class="prob-fill" id="prob-problem" style="width:90%"></div></div><span class="mono" id="prob-problem-n">90%</span></div>
+   <div class="prob-row"><span>客气</span><div class="prob-track"><div class="prob-fill alt" id="prob-welcome" style="width:10%"></div></div><span class="mono" id="prob-welcome-n">10%</span></div>
+   <div class="prob-result" id="semi-result" aria-live="polite">点一下抽样，看这次是否搭配连贯。</div><button class="btn secondary" id="semi-sample">抽样第二个词 ↗</button>
+  </div></div>
+  <div class="lab-foot"><strong>不是“整段猜完再纠错”。</strong>先并行得到基础分数，再由轻量模块依据前面已采样的 token 调整分数，并从左到右采样。骨干可以共享上下文，但这不同于知道同一块中前面实际选出的词。50% / 90% 仅用于教学，不是论文接受率。 <a class="cite" href="#ref-dspark">[1 §3.1]</a></div>
+ </div>
+ <div class="semi-bottom"><div class="mini-explain"><h4>Markov 头：只补“紧邻前一个词”的影响。</h4><p>并行骨干仍负责上下文信息；新增的顺序偏置依赖前一个 token，以低秩矩阵实现。不要误解成整个模型只记得一个词。 <a class="cite" href="#ref-dspark">[1 §3.1]</a></p></div><div class="mini-explain"><h4>RNN 头：给轻量模块再加一点记忆。</h4><p>论文也讨论用递归状态保留块内前缀历史的版本；论文中的 DeepSeek-V4 生产配置采用 Markov 头。 <a class="cite" href="#ref-dspark">[1 §3.1、§5.1]</a></p></div></div>
+ <details class="detail"><summary>多看一层：基础分数与“顺序偏置”怎样合起来？</summary><div class="detail-content"><div class="formula">qₖ = softmax(Uₖ + Bₖ)<br>Markov 版本：Bₖ = W₁[xₖ₋₁] W₂</div><p><strong>Uₖ</strong> 是并行骨干对第 k 个位置算出的基础 logits（未归一化分数）；<strong>Bₖ</strong> 是轻量头补上的偏置；softmax 把两者相加后的分数变成概率。低秩分解避免直接保存巨大的“词表 × 词表”转移矩阵。 <a class="cite" href="#ref-dspark">[1 式4–5]</a></p><p>上面的两词玩具例子从相同分数出发，给兼容搭配加 ln(9) 的偏置，于是概率由 1:1 变成 9:1。这是为了展示机制，真实偏置需要学习，并不保证每次都选中兼容词。</p></div></details>
+</div></section>
+
+<section class="section dark-section" id="scheduler" aria-labelledby="scheduler-title"><div class="wrap">
+ <div class="section-head"><div><div class="section-kicker"><span class="section-num">04</span> DSPARK 创新二 · CONFIDENCE SCHEDULING</div><h2 id="scheduler-title">猜得长，<br>不如验证得值。</h2></div><p>把大模型看作一位同时服务多人的审稿人。空闲时多看几页划算；忙碌时，低把握的后缀会挤占别人的机会。DSpark 同时看<strong>前缀存活概率</strong>与<strong>硬件成本</strong>。 <a class="cite" href="#ref-dspark">[1 §3.2]</a></p></div>
+ <div class="lab">
+  <div class="lab-head"><div class="lab-label"><span class="dot"></span> 实验 04 · 你来掌管验证预算</div><div class="segmented" aria-label="选择验证策略"><button data-policy="all" aria-pressed="false">全部验证</button><button data-policy="adaptive" aria-pressed="true">DSpark 式调度</button></div></div>
+  <div class="scheduler-grid"><div class="scheduler-settings">
+   <div><label class="range-label" for="server-load">模拟服务器负载 <output for="server-load" id="load-out">60%</output></label><input class="range" id="server-load" type="range" min="0" max="100" value="60"><div class="range-ends"><span>空闲</span><span>拥挤</span></div><div class="load-status"><span class="dot"></span><span id="load-status">额外验证的代价正在变高</span></div></div>
+   <div><label for="confidence-profile" class="label" style="display:block">候选草稿的整体把握</label><select id="confidence-profile"><option value="normal">默认 · 三种不同难度</option><option value="high">更有把握 · 草稿更贴近目标</option><option value="low">更难预测 · 草稿偏差更大</option></select></div>
+   <p class="sched-hint">拖动负载，观察每条请求<strong style="color:var(--mint)">保留的长度</strong>。点击任意概率方块，查看“单步置信度”怎样变成“整段存活概率”。</p>
+  </div><div class="scheduler-main">
+   <div class="request-grid-head"><span>候选位置 1 → 5 · 显示前缀存活概率 aⱼ</span><span>送验长度</span></div>
+   <div id="request-rows"></div>
+   <div class="conf-inspector" id="conf-inspector" aria-live="polite"></div>
+  </div></div>
+  <div class="scheduler-metrics" aria-live="polite"><div class="stat"><div class="val" id="sched-batch">—</div><div class="name">送入目标模型的位置数 B</div><div class="sub">3 个锚点 + 选中的草稿位置</div></div><div class="stat"><div class="val" id="sched-expected">—</div><div class="name">预计本轮新增 token 数 τ</div><div class="sub">每条请求至少推进 1 个</div></div><div class="stat"><div class="val" id="sched-waste">—</div><div class="name">预计未转化为输出的位置</div><div class="sub">B − τ · 不是实际拒绝记录</div></div></div>
+  <div class="lab-foot"><strong>教学模型，不是实测。</strong>仅展示 3 条请求、每条最多 5 个候选；负载通过人为成本曲线体现，不对应真实并发人数。方块越靠后，必须同时满足的前缀条件越多。亮色为送验前缀，虚线为不送验后缀。</div>
+ </div>
+ <div class="sched-compare" aria-label="教学吞吐量对照">
+  <div class="throughput-card"><div class="top"><h4>全部验证</h4><span class="pill" style="border-color:#506c46;color:#b4c9a9">固定 5 / 请求</span></div><div class="large"><span id="all-throughput">—</span> <small>教学 token / 秒</small></div><div class="calc" id="all-calc">—</div><div class="compare-track"><span id="all-bar"></span></div></div>
+  <div class="throughput-card emphasized"><div class="top"><h4>DSpark 式调度</h4><span class="pill" style="border-color:#709a5b;color:var(--mint)" id="sched-gain">—</span></div><div class="large"><span id="adaptive-throughput">—</span> <small>教学 token / 秒</small></div><div class="calc" id="adaptive-calc">—</div><div class="compare-track"><span id="adaptive-bar"></span></div></div>
+ </div>
+ <p class="small muted" style="margin-top:15px" id="scheduler-verdict" aria-live="polite"></p>
+ <div class="scheduler-notes"><details class="detail"><summary>看懂数字：为什么不是只看每个词的置信度？</summary><div class="detail-content"><p>cⱼ 估计的是“前面的候选已接受时，当前候选也会被接受”的条件概率；它不是事实正确率。前 j 个全部存活的估计为：</p><div class="formula">aⱼ = c₁ × c₂ × … × cⱼ<br>单请求预期新增 = 1 + a₁ + … + aℓ</div><p>例如 c₁ = c₂ = c₃ = 0.8，则第 3 个候选能被保留的概率是 0.512，而不是 0.8。前面的“1”来自目标模型补出的 token。置信度还需要校准，不能直接把“自信”当作准确概率。 <a class="cite" href="#ref-dspark">[1 §3.2]</a></p></div></details>
+ <details class="detail"><summary>算法细节：怎样算“值不值得”？</summary><div class="detail-content"><p>把各请求的前缀扩展按 aⱼ 从高到低排列；在平滑成本假设下，沿此顺序增加验证位置，当预期吞吐量不再提高时停止。不是给每条请求设一个相同的固定置信度阈值。</p><div class="formula">B = Σᵣ (1 + ℓᵣ)<br>τ = Σᵣ (1 + Σⱼ≤ℓᵣ aᵣ,ⱼ)<br>吞吐估计 Θ = τ × SPS(B)</div><p>SPS(B) 表示对应 batch 大小时每秒能执行的步数，应来自实际引擎测量。本实验用合并固定开销后的玩具曲线 T(B) = 20 + (0.05 + 1.15ρ)B + (0.002 + 0.10ρ)B² 毫秒，ρ 为负载比例；SPS = 1000/T。</p><p><strong>严格实现还有因果限制：</strong>不能偷看当前 token 的结果，再决定是否让它参评。论文的同步算法使用早停；生产方案用前两步的历史预测确定容量，并对当前候选排序，以适应异步流水线与不平滑硬件曲线。此处只演示平滑成本下的同步选择逻辑，不复刻生产服务。 <a class="cite" href="#ref-dspark">[1 算法1、§5.2、附录A]</a></p></div></details></div>
+</div></section>
+
+<section class="section" id="quality" aria-labelledby="quality-title"><div class="wrap">
+ <div class="section-head"><div><div class="section-kicker"><span class="section-num">05</span> 质量从哪里来 · EXACT SAMPLING</div><h2 id="quality-title">更快，不靠让草稿<br>“蒙混过关”。</h2></div><p>严格投机采样保留的是<strong>目标模型的输出概率分布</strong>，不是保证两次运行得到完全相同的句子。置信度只帮助分配预算，真正把关的是接受与拒绝采样规则。 <a class="cite" href="#ref-spec">[4]</a></p></div>
+ <div class="lab">
+  <div class="lab-head"><div class="lab-label"><span class="dot"></span> 实验 05 · 草稿有偏，输出分布也能不偏</div><span class="pill">真实采样公式 · 三词玩具模型</span></div>
+  <div class="lab-body sampling-grid"><div class="sampling-controls">
+   <p class="sampling-label">假设下一词只有 <strong>茶、咖啡、水</strong>。目标模型概率固定为 50%、30%、20%；让草稿模型偏爱“茶”，再观察校正。</p>
+   <label class="range-label" for="draft-tea">草稿选择“茶”的概率 <output id="tea-out" for="draft-tea">70%</output></label><input class="range" id="draft-tea" type="range" min="20" max="90" value="70" step="1"><div class="range-ends"><span>20%</span><span>90%</span></div>
+   <div class="sample-stats">理论平均接受率 <strong id="sample-accept-rate">80%</strong><br>已抽样 <strong id="sample-n">0</strong> 次 · 被拒后重采样 <strong id="sample-rejected">0</strong> 次</div>
+   <div class="button-row" style="margin-top:20px"><button class="btn" id="sample-run">模拟 2,000 次抽样</button><button class="btn ghost" id="sample-reset">↺</button></div>
+  </div><div>
+   <div class="sample-legend"><span><i style="background:#b7c8aa"></i>草稿 q</span><span><i style="background:var(--green)"></i>目标 p / 校正后理论值</span><span><i style="background:#ddae89"></i>抽样后实际频率</span></div>
+   <div id="distribution-rows"></div>
+   <div class="sample-status" id="sample-status" aria-live="polite">调节草稿偏好，再点“模拟”。看看它最终是否仍接近目标的 50 / 30 / 20。</div>
+  </div></div>
+  <div class="lab-foot">有限次抽样会有随机波动。这个实验运行离散分布上的标准拒绝采样，不调用 DeepSeek。它展示的是<strong>概率校正</strong>，不意味着目标模型本身不犯事实错误，也不是实际大模型输出质量测试。 <a class="cite" href="#ref-spec">[4]</a></div>
+ </div>
+ <details class="detail"><summary>展开接受 / 拒绝公式，以及一个容易忽视的条件</summary><div class="detail-content"><p>设 p 是目标分布，q 是实际使用的草稿分布（包括顺序头带来的调整）。先从 q 抽出 x，以如下概率接受：</p><div class="formula">α(x) = min(1, p(x) / q(x))</div><p>如果拒绝，不能简单再从 p 随便抽一次，而应从“目标相对草稿缺少的概率质量”中重采样：</p><div class="formula">r(v) = max(p(v) − q(v), 0) / Σᵤ max(p(u) − q(u), 0)</div><p>玩具例子中，草稿 q = (0.70, 0.18, 0.12)，目标 p = (0.50, 0.30, 0.20)。接受部分的总概率质量为 (0.50, 0.18, 0.12)，剩余 0.20 按 (0, 0.60, 0.40) 补回，最后正好恢复 p。若 q = p，全部接受，根本不会走拒绝分支。 <a class="cite" href="#ref-spec">[4]</a></p><p>调度也必须满足“不偷看未来采样结果”的因果条件；否则先挑“有利的候选”再验证，会引入选择偏差。<strong>无损来自完整算法的正确实现，不是来自一句“让大模型检查一下”。</strong> <a class="cite" href="#ref-dspark">[1 §3.2.2、附录A]</a></p></div></details>
+</div></section>
+
+<section class="section" id="evidence" aria-labelledby="evidence-title"><div class="wrap">
+ <div class="section-head"><div><div class="section-kicker"><span class="section-num">06</span> 从玩具实验回到论文 · EVIDENCE</div><h2 id="evidence-title">到底快了多少？<br>先问“在什么条件下”。</h2></div><p>这一节才是<strong>论文报告的真实生产数据</strong>：DeepSeek-V4 预览版服务中，DSpark-5 与先前 MTP-1 基线比较。单用户出字速度和全系统吞吐量是两种不同指标。 <a class="cite" href="#ref-dspark">[1 §5.4]</a></p></div>
+ <div class="evidence-top"><div class="segmented" aria-label="选择论文性能指标"><button data-evidence="speed" aria-pressed="true">相同吞吐量，看单用户速度</button><button data-evidence="throughput" aria-pressed="false">相同速度要求，看总吞吐</button></div><span class="small muted">均相对 MTP-1；DSpark-5 最大草稿长度为 5。</span></div>
+ <div class="evidence-cards"><article class="evidence-card"><h3>DeepSeek-V4-Flash <span class="small muted">preview</span></h3><div class="evidence-number" id="flash-number">+60–85%</div><div class="evidence-label" id="flash-label">单用户生成速度</div><p class="evidence-condition" id="flash-condition">比较条件：匹配实际系统总吞吐量。此处是生成阶段每用户 token/s 的提升，不是所有请求总耗时都减少 60–85%。</p></article><article class="evidence-card"><h3>DeepSeek-V4-Pro <span class="small muted">preview</span></h3><div class="evidence-number" id="pro-number">+57–78%</div><div class="evidence-label" id="pro-label">单用户生成速度</div><p class="evidence-condition" id="pro-condition">比较条件：匹配系统容量。收益受模型、硬件、并发、草稿与目标的一致程度影响；不是本地部署的普遍承诺。</p></article></div>
+ <div class="note" style="margin-top:19px"><strong>别把极端比值当日常加速。</strong>论文还报告在非常严格的速度要求下，相对吞吐量提升 +661%（Flash）与 +406%（Pro）。这时 MTP-1 已接近服务边界、只能支撑很小的并发；作者强调这些点说明可服务范围扩大，而非通用的数倍加速。 <a class="cite" href="#ref-dspark">[1 §5.4]</a></div>
+ <div class="reading-grid" style="margin-top:19px"><details class="detail"><summary>DSpark 需要重新训练主模型吗？</summary><div class="detail-content"><p>论文训练时冻结目标模型及共享的 embedding / 输出头，学习草稿骨干、顺序模块与置信度头。因此“无需重训主模型”不等于“什么都不用训练”。官方 DeepSpec 仓库提供草稿数据准备、训练与评估流程。 <a class="cite" href="#ref-dspark">[1 §3.3]</a> <a class="cite" href="#ref-deepspec">[5]</a></p></div></details><details class="detail"><summary>为什么有时收益有限，甚至不划算？</summary><div class="detail-content"><p>草稿本身要花时间，也占资源。若接受率很低，即使剪掉后缀，已经付出的并行起草成本也无法收回。不同推理引擎对动态长度的支持也会影响收益；仅有草稿权重并不自动等于复现整套生产调度。 <a class="cite" href="#ref-dspark">[1 §5.2–5.4]</a></p></div></details></div>
+</div></section>
+
+<section class="section quiz-section" id="checkpoint" aria-labelledby="quiz-title"><div class="wrap">
+ <div class="section-head" style="margin-bottom:18px"><div><div class="section-kicker"><span class="section-num">✓</span> 带走真正重要的三件事</div><h2 id="quiz-title">现在，让你来当审稿人。</h2></div><div class="quiz-score"><span class="score-dots" aria-hidden="true"><i></i><i></i><i></i></span><span id="quiz-score" aria-live="polite">已掌握 0 / 3</span></div></div>
+ <div class="quiz-grid">
+  <article class="quiz-card" data-question="0"><span class="q-num">QUESTION / 01</span><h3>第 3 个候选被拒绝，<br>第 4 个看着没问题，能保留吗？</h3><div class="quiz-options"><button data-answer="0">能，单独看它是否正确</button><button data-answer="1">不能，接受必须是连续前缀</button></div><div class="quiz-feedback" aria-live="polite">想想第 4 个候选的计算依赖了哪个前缀。</div></article>
+  <article class="quiz-card" data-question="1"><span class="q-num">QUESTION / 02</span><h3>服务器很忙时，<br>为什么不干脆把草稿都验证完？</h3><div class="quiz-options"><button data-answer="1">低把握后缀会挤占验证资源</button><button data-answer="0">因为忙时模型就不会并行了</button></div><div class="quiz-feedback" aria-live="polite">区分“能不能做”与“做了值不值”。</div></article>
+  <article class="quiz-card" data-question="2"><span class="q-num">QUESTION / 03</span><h3>“不损失质量”的严格含义，<br>更接近下面哪一种？</h3><div class="quiz-options"><button data-answer="0">每次运行必须输出相同文本</button><button data-answer="1">正确实现时保持目标输出分布</button></div><div class="quiz-feedback" aria-live="polite">回想最后那个三词概率实验。</div></article>
+ </div>
+ <div class="summary-card"><svg width="30" height="34" viewBox="0 0 24 28" fill="none" aria-hidden="true"><path d="m14 1-11 15h8l-1 11L22 11h-9l1-10Z" fill="#c9f4c0"/></svg><p><b>DSpark = 半自回归草稿 + 置信度 / 硬件感知调度 + 严格目标验证。</b><br>让便宜的计算多做一点，让昂贵的计算少浪费一点，而不是降低最后的把关标准。 <a class="cite" style="color:var(--mint)" href="#ref-dspark">[1]</a></p></div>
+</div></section>
+</main>
+<section class="sources wrap" id="sources" aria-labelledby="sources-title">
+ <div class="sources-head"><h2 id="sources-title">继续阅读 · 一手来源</h2><span class="small muted">资料核对：2026-09-06 · 原理以论文 v1 为基准</span></div>
+ <div class="source-grid">
+  <div class="source" id="ref-dspark"><span>[1]</span><div><a href="https://arxiv.org/html/2607.05147v1" target="_blank" rel="noopener noreferrer">DSpark: Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation ↗</a><p>Cheng 等，DeepSeek-AI / 北京大学。arXiv:2607.05147v1，2026-07-06。§3：架构、概率与调度；§5：部署、收益与限制；附录A：调度选择偏差。本站的原理图为重新绘制的教学示意。</p></div></div>
+  <div class="source" id="ref-model"><span>[2]</span><div><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-DSpark" target="_blank" rel="noopener noreferrer">DeepSeek-V4-Pro-DSpark · 官方模型说明 ↗</a><p>说明该发布是在原 checkpoint 上附加投机解码模块，并非一个全新的主模型。网站不提供模型部署或实际推理服务。</p></div></div>
+  <div class="source" id="ref-google"><span>[3]</span><div><a href="https://research.google/blog/looking-back-at-speculative-decoding/" target="_blank" rel="noopener noreferrer">Looking back at speculative decoding ↗</a><p>Google Research，2024-12-06。用于补充 token、自回归生成、内存瓶颈，以及并行验证的直觉。</p></div></div>
+  <div class="source" id="ref-spec"><span>[4]</span><div><a href="https://proceedings.mlr.press/v202/leviathan23a.html" target="_blank" rel="noopener noreferrer">Fast Inference from Transformers via Speculative Decoding ↗</a><p>Leviathan、Kalman、Matias，ICML 2023。标准投机解码、拒绝采样算法与目标分布保持证明。</p></div></div>
+  <div class="source" id="ref-deepspec"><span>[5]</span><div><a href="https://github.com/deepseek-ai/DeepSpec" target="_blank" rel="noopener noreferrer">DeepSpec · 官方训练与评估仓库 ↗</a><p>包含草稿模型的数据准备、训练和评估流程。DSpark 是算法 / 模块；DeepSpec 是研究代码库，二者不是同一个概念。</p></div></div>
+  <div class="source"><span>ⓘ</span><div><strong>关于本页的简化</strong><p>实验 01–04 使用人为分词、概率与成本，不能用于预测 GPU 性能；实验 05 是有限词表上的真实公式模拟；仅第 06 节的数值来自论文。演示不调用 API、不加载模型、不收集输入；打开外部来源才需要联网。</p></div></div>
+ </div>
+ <footer class="footer"><span><strong>DSpark / 可交互原理指南</strong><br>独立制作的中文教学页面，非 DeepSeek 官方网站。</span><span>单文件 HTML · 无外部依赖 · 适配桌面与手机<br>所有实验均可重置；支持键盘操作与减少动态效果偏好。</span></footer>
+</section>
+<a class="back-top" href="#top" aria-label="回到顶部">↑</a>
+<noscript><div style="padding:20px;background:#fae7db;text-align:center">当前浏览器禁用了 JavaScript。正文仍可阅读；启用 JavaScript 后可使用交互实验。</div></noscript>
+<script>
+'use strict';
+// Everything is local. These are transparent teaching models, not DeepSeek inference.
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
+const pct = (x, digits = 0) => (x * 100).toFixed(digits) + '%';
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+function setPressed(selector, attribute, value) {
+  $$(selector).forEach(el => el.setAttribute('aria-pressed', String(el.getAttribute(attribute) === String(value))));
+}
+function token(text, cls = '', mark = '') {
+  const el = document.createElement('span'); el.className = 'token ' + cls; el.textContent = text;
+  if (mark) { const m = document.createElement('span'); m.className = 'token-mark'; m.textContent = mark; m.setAttribute('aria-hidden', 'true'); el.append(m); }
+  return el;
+}
+
+// Cover: semantic buttons reveal the distinct responsibilities of each component.
+const heroDescriptions = [
+ ['① 先把昂贵的活并行做完。','草稿骨干一次计算多个位置的基础分数；这还不是最终提交给用户的文本。'],
+ ['② 小小的顺序模块，让词与词接得上。','后一个位置参考前面实际采样的词，再调整分数；不用重新跑一遍重的骨干。'],
+ ['③ 别把验证机会浪费在低把握后缀。','结合前缀存活概率与服务器成本，为各条请求选择不同的送验长度。'],
+ ['④ 接受规则不由小助手说了算。','原来的目标模型并行评估候选；只接受连续前缀，并按规则补出一个 token。']
+];
+$$('[data-hero]').forEach(b => b.addEventListener('click', () => {
+ const i = Number(b.dataset.hero); setPressed('[data-hero]', 'data-hero', i);
+ $('#hero-explain').replaceChildren(); const strong = document.createElement('strong'); strong.textContent = heroDescriptions[i][0];
+ $('#hero-explain').append(strong, document.createElement('br'), document.createTextNode(heroDescriptions[i][1]));
+}));
+
+// Experiment 01: each extra output needs another target-model step.
+const arWords = ['猫', '坐', '在', '窗边', '看', '雨', '。'];
+let arIndex = 0, arTimer = null;
+function renderAR() {
+ const row = $('#ar-output'); row.replaceChildren();
+ arWords.forEach((w,i) => row.append(token(i < arIndex ? w : '·', i < arIndex ? 'accept' : 'pending')));
+ $('#ar-rail').replaceChildren(...arWords.map((_,i) => { const e=document.createElement('span'); e.className=i<arIndex?'done':''; return e; }));
+ $('#ar-count').textContent = arIndex + ' / ' + arWords.length;
+ $('#ar-pass').textContent = '前向计算 ' + arIndex + ' 次';
+ $('#ar-step').disabled = arIndex === arWords.length;
+ $('#ar-caption').textContent = arIndex === 0 ? '点击一次，就让目标模型前进一步。' : arIndex === arWords.length ? '7 个输出片段，7 次连续的目标前向；后一步总要等前一步确定。' : '下一次预测会基于：用户输入 + “' + arWords.slice(0,arIndex).join('') + '”。';
+ $('#ar-play').textContent = arTimer ? 'Ⅱ 暂停' : arIndex === arWords.length ? '↺ 重新播放' : '▶ 连续播放';
+}
+function pauseAR(){ if(arTimer)clearInterval(arTimer);arTimer=null;renderAR(); }
+function advanceAR(){ if(arIndex<arWords.length){ arIndex++; const el=$('#ar-factory');el.classList.remove('busy'); void el.offsetWidth;el.classList.add('busy'); } if(arIndex===arWords.length)pauseAR();else renderAR(); }
+$('#ar-step').addEventListener('click',()=>{pauseAR();advanceAR();});
+$('#ar-play').addEventListener('click',()=>{if(arTimer){pauseAR();return;}if(arIndex===arWords.length)arIndex=0;arTimer=setInterval(advanceAR,850);advanceAR();});
+$('#ar-reset').addEventListener('click',()=>{pauseAR();arIndex=0;renderAR();});
+renderAR();
+
+// Experiment 02: deterministic greedy example, not stochastic acceptance.
+const correctWords = ['一','杯','热','牛奶','。','然后'];
+const wrongWords = ['两','瓶','冷','咖啡','！'];
+let phase = 0, specTimer = null;
+function pauseSpec(){if(specTimer)clearInterval(specTimer);specTimer=null;$('#spec-play').textContent=phase===4?'↺ 再播一轮':'▶ 播放一轮';}
+function renderSpec(){
+ const length=Number($('#verify-length').value), rejectAt=Number($('#reject-at').value);
+ const accepted=Math.min(length,rejectAt-1), hasReject=rejectAt<=length;
+ $('#verify-length-out').textContent=length+' 个';
+ $$('[data-phase]').forEach(b=>{const n=Number(b.dataset.phase);b.classList.toggle('active',n===phase);b.classList.toggle('completed',n<phase);b.setAttribute('aria-current',n===phase?'step':'false');});
+ const draft=$('#spec-draft');draft.replaceChildren();
+ for(let i=0;i<5;i++){
+  let cls='',mark='',text=(i+1===rejectAt?wrongWords[i]:correctWords[i]);
+  if(phase===0){text='·';cls='pending';}
+  else if(phase>=2&&i>=length){cls='trim';mark='';}
+  else if(phase>=3){if(i<accepted){cls='accept';mark='✓';}else if(i+1===rejectAt&&hasReject){cls='reject';mark='×';}else{cls='trim';}}
+  const el=token(text,cls,mark);
+  el.title=phase===0?'尚未起草':i>=length&&phase>=2?'未送验：被调度剪掉':phase>=3&&i>accepted?'舍弃：前缀已被拒绝':'候选位置 '+(i+1);
+  draft.append(el);
+ }
+ const out=$('#spec-output');out.replaceChildren();
+ if(phase<4){const s=document.createElement('span');s.className='small muted';s.style.padding='10px 0';s.textContent=phase<3?'验证后才会提交给用户。':'已得到验证结果，下一步提交连续前缀。';out.append(s);}
+ else {for(let i=0;i<accepted;i++)out.append(token(correctWords[i],'accept','✓'));out.append(token(correctWords[accepted],'direct','+'));}
+ $('#spec-accepted').textContent=phase>=3?String(accepted):'—';
+ $('#spec-new').textContent=phase>=4?String(accepted+1):'—';
+ $('#spec-batch').textContent=phase>=2?String(length+1):'—';
+ const data=[
+  ['READY WHEN YOU ARE','先选条件，再看过程。','试试“第 3 个不匹配”。留意第 4、5 个候选：即使它们看起来不错，也不能越过断点被保留。'],
+  ['STEP 01 / DRAFT','一次准备 5 个候选。','DSpark 先并行计算基础分数，再经轻量顺序头从左到右采样。本例手动安排一处不匹配，以便观察拒绝。此时所有词都只是草稿。'],
+  ['STEP 02 / SCHEDULE',length===0?'本轮不验证任何草稿。':'只把前 '+length+' 个候选送验。',length===0?'长度为 0 时，仍保留锚点位置；目标模型会按常规方式给出下一个 token。':`保留一个连续前缀，剪掉 ${5-length} 个尾部候选。加上已确定的锚点，目标模型这一轮处理 ${length+1} 个位置。这里的长度由你手动指定。`],
+  ['STEP 03 / VERIFY',hasReject?'在第 '+rejectAt+' 个候选处截断。':'送验的草稿全部匹配。',hasReject?`接受前 ${accepted} 个草稿。“${wrongWords[rejectAt-1]}”与该位置的贪心参考“${correctWords[rejectAt-1]}”不符；其后 ${length-rejectAt} 个已送验位置不能继续使用。目标模型已计算这一轮所需分布。`:length===0?'没有草稿参与匹配，目标模型直接给出“一”。':`这 ${length} 个候选都与各自位置的贪心参考一致；目标模型还可从末尾位置给出一个 bonus token。`],
+  ['STEP 04 / COMMIT','本轮共前进 '+(accepted+1)+' 个 token。',`${accepted} 个被接受的草稿 + 1 个目标模型${hasReject?'纠正后补出':length===0?'直接生成':'额外补出'}的 token。新补出的“${correctWords[accepted]}”可作为下一轮锚点。${hasReject?'旧的被拒后缀需在新前缀下重新起草。':''}`]
+ ];
+ $('#spec-stage-label').textContent=data[phase][0];$('#spec-stage-title').textContent=data[phase][1];$('#spec-stage-desc').textContent=data[phase][2];
+ $('#spec-next').disabled=phase===4;$('#spec-play').textContent=specTimer?'Ⅱ 暂停':phase===4?'↺ 再播一轮':'▶ 播放一轮';
+}
+function nextSpec(){if(phase<4)phase++;if(phase===4)pauseSpec();renderSpec();}
+$$('[data-phase]').forEach(b=>b.addEventListener('click',()=>{pauseSpec();phase=Number(b.dataset.phase);renderSpec();}));
+$('#spec-play').addEventListener('click',()=>{if(specTimer){pauseSpec();renderSpec();return;}if(phase===4)phase=0;specTimer=setInterval(nextSpec,1550);nextSpec();});
+$('#spec-next').addEventListener('click',()=>{pauseSpec();nextSpec();});
+$('#spec-reset').addEventListener('click',()=>{pauseSpec();phase=0;renderSpec();});
+$('#spec-reset').setAttribute('aria-label','重置解码演示');
+['verify-length','reject-at'].forEach(id=>$('#'+id).addEventListener('input',()=>{pauseSpec();phase=0;renderSpec();}));
+renderSpec();
+
+// Experiment 03: base logits are equal; a ln(9) Markov bias gives 90/10.
+let semiMode='markov',firstWord='没';
+function renderSemi(){
+ const conditional=semiMode==='markov';let p=conditional?(firstWord==='没'?.9:.1):.5;
+ setPressed('[data-semi]','data-semi',semiMode);setPressed('[data-first]','data-first',firstWord);
+ $('#prob-problem').style.width=pct(p);$('#prob-welcome').style.width=pct(1-p);
+ $('#prob-problem-n').textContent=pct(p);$('#prob-welcome-n').textContent=pct(1-p);
+ $('#seq-head').classList.toggle('off',!conditional);$('#seq-output').classList.toggle('off',!conditional);
+ $('#seq-head').textContent=conditional?'轻量顺序头：前一个 token → 当前分数偏置':'没有顺序头：各位置按自己的基础分数采样';
+ $('#semi-caption').textContent=conditional?'重的 Transformer 不必逐位置重跑；只让很轻的头从左到右工作。':'基础计算虽共享上下文，但本例各位置不知道对方实际抽到了哪个词。';
+ $('#semi-result').classList.remove('fail');$('#semi-result').textContent=conditional?'已选择“'+firstWord+'”，轻量头提高兼容词的概率。':'把第一个词从“没”切换成“不”：第二个位置仍是 50 / 50。';
+}
+$$('[data-semi]').forEach(b=>b.addEventListener('click',()=>{semiMode=b.dataset.semi;renderSemi();}));
+$$('[data-first]').forEach(b=>b.addEventListener('click',()=>{firstWord=b.dataset.first;renderSemi();}));
+$('#semi-sample').addEventListener('click',()=>{const p=semiMode==='markov'?(firstWord==='没'?.9:.1):.5;const second=Math.random()<p?'问题':'客气';const coherent=(firstWord==='没'&&second==='问题')||(firstWord==='不'&&second==='客气');const el=$('#semi-result');el.classList.toggle('fail',!coherent);el.replaceChildren(document.createTextNode(coherent?'✓ 这次搭配连贯：':'× 这次发生搭配冲突：'));const b=document.createElement('strong');b.textContent=firstWord+second;el.append(b);});
+renderSemi();
+
+// Experiment 04: synchronous, causal-prefix greedy admission on a smooth toy cost curve.
+// All confidence arrays below are fixed teaching data, not model confidence measurements.
+const baseConfidences=[[.96,.94,.90,.85,.78],[.88,.80,.72,.64,.55],[.72,.60,.46,.35,.25]];
+const requestNames=['结构重复','常规续写','多分支续写'];
+let policy='adaptive',selectedCell=[0,2],schedulerState=null;
+function confidenceArrays(){const profile=$('#confidence-profile').value;return baseConfidences.map(row=>row.map(c=>profile==='high'?Math.min(.995,c+.12):profile==='low'?Math.max(.08,c-.20):c));}
+function cumulative(row){let product=1;return row.map(c=>(product*=c));}
+function stepCost(B,load){return 20+(.05+1.15*load)*B+(.002+.10*load)*B*B;}
+function evaluateLengths(lengths,survival,load){const B=3+lengths.reduce((a,b)=>a+b,0);const expected=3+survival.reduce((a,row,r)=>a+row.slice(0,lengths[r]).reduce((x,y)=>x+y,0),0);const ms=stepCost(B,load);return {lengths:[...lengths],B,expected,ms,rate:1000*expected/ms};}
+function choosePrefixes(survival,load){
+ const extensions=[];survival.forEach((row,r)=>row.forEach((a,j)=>extensions.push({r,j,a})));
+ // Stable ties by position ensure a later member of the same prefix is never admitted first.
+ extensions.sort((a,b)=>b.a-a.a||a.j-b.j||a.r-b.r);
+ let lengths=[0,0,0],best=evaluateLengths(lengths,survival,load),stop=null;
+ for(const e of extensions){const trialLengths=[...lengths];trialLengths[e.r]=e.j+1;const trial=evaluateLengths(trialLengths,survival,load);
+  if(trial.rate<=best.rate+1e-10){stop=e;break;}
+  lengths=trialLengths;best=trial;
+ }
+ return {...best,stop};
+}
+function renderInspector(){
+ const {conf,survival,chosen}=schedulerState;const [r,j]=selectedCell;const eligible=j<chosen.lengths[r];
+ const box=$('#conf-inspector');box.replaceChildren();const title=document.createElement('strong');title.textContent=`请求 ${String.fromCharCode(65+r)} · 第 ${j+1} 个候选：${eligible?'送验':'不送验'}`;
+ box.append(title,document.createElement('br'),document.createTextNode(`本位置条件接受率估计 c${j+1} = ${pct(conf[r][j],1)}；前 ${j+1} 个全部存活的估计 a${j+1} = ${pct(survival[r][j],1)}。`));
+ const formula=document.createElement('code');formula.textContent=conf[r].slice(0,j+1).map(x=>x.toFixed(2)).join(' × ')+' = '+survival[r][j].toFixed(4);box.append(formula);
+ $$('.conf-cell').forEach(b=>{const selected=Number(b.dataset.r)===r&&Number(b.dataset.j)===j;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
+}
+function renderScheduler(){
+ const load=Number($('#server-load').value)/100,conf=confidenceArrays(),survival=conf.map(cumulative);
+ const adaptive=choosePrefixes(survival,load),all=evaluateLengths([5,5,5],survival,load),chosen=policy==='adaptive'?adaptive:all;
+ schedulerState={conf,survival,adaptive,all,chosen};setPressed('[data-policy]','data-policy',policy);
+ $('#load-out').textContent=pct(load);$('#load-status').textContent=load<.3?'较空闲，可以多利用并行计算':load<.7?'额外验证的代价正在变高':'较拥挤，优先避免无效的验证';
+ const rows=$('#request-rows');rows.replaceChildren();
+ conf.forEach((row,r)=>{
+  const line=document.createElement('div');line.className='request-row';
+  const name=document.createElement('div');name.className='request-name';name.textContent=requestNames[r];const small=document.createElement('small');small.textContent='REQUEST '+String.fromCharCode(65+r);name.append(small);line.append(name);
+  row.forEach((c,j)=>{const el=document.createElement('button');el.className='conf-cell'+(j>=chosen.lengths[r]?' pruned':'');el.dataset.r=r;el.dataset.j=j;el.textContent=pct(survival[r][j]);const label=document.createElement('small');label.textContent='a'+(j+1);el.append(label);el.setAttribute('aria-label',`请求 ${String.fromCharCode(65+r)} 第 ${j+1} 个位置，前缀存活概率 ${pct(survival[r][j],1)}，${j<chosen.lengths[r]?'送验':'不送验'}。点击查看计算。`);el.addEventListener('click',()=>{selectedCell=[r,j];renderInspector();});line.append(el);});
+  const len=document.createElement('div');len.className='request-len';const b=document.createElement('b');b.textContent=chosen.lengths[r];len.append(b,document.createTextNode(' / 5'));line.append(len);rows.append(line);
+ });
+ renderInspector();
+ $('#sched-batch').textContent=chosen.B;$('#sched-expected').textContent=chosen.expected.toFixed(2);$('#sched-waste').textContent=(chosen.B-chosen.expected).toFixed(2);
+ $('#all-throughput').textContent=all.rate.toFixed(1);$('#adaptive-throughput').textContent=adaptive.rate.toFixed(1);
+ $('#all-calc').textContent=all.expected.toFixed(2)+' token ÷ '+all.ms.toFixed(2)+' ms';$('#adaptive-calc').textContent=adaptive.expected.toFixed(2)+' token ÷ '+adaptive.ms.toFixed(2)+' ms';
+ const gain=(adaptive.rate/all.rate-1)*100;$('#sched-gain').textContent=(gain<.05?'持平':'+'+gain.toFixed(1)+'%')+' · 模拟';
+ const maxRate=Math.max(all.rate,adaptive.rate);$('#all-bar').style.width=pct(all.rate/maxRate);$('#adaptive-bar').style.width=pct(adaptive.rate/maxRate);
+ const wasted=all.B-adaptive.B;
+ $('#scheduler-verdict').textContent=`当前玩具设定：调度长度为 [${adaptive.lengths.join(', ')}]，比全部验证少处理 ${wasted} 个位置。${wasted===0?'此时所有候选都值得尝试。':'一轮预期新增虽可能减少，但验证耗时也下降；应比较两者之比，而不是只追求接受长度。'} 下方两栏始终对照同一负载与同一组置信度，上方方块显示你选中的策略。`;
+}
+$('#server-load').addEventListener('input',renderScheduler);$('#confidence-profile').addEventListener('change',renderScheduler);
+$$('[data-policy]').forEach(b=>b.addEventListener('click',()=>{policy=b.dataset.policy;renderScheduler();}));
+renderScheduler();
+
+// Experiment 05: exact modified rejection sampling over a finite vocabulary.
+const targetP=[.5,.3,.2],wordNames=['茶','咖啡','水'];let sampleCounts=[0,0,0],sampleN=0,sampleRejects=0,rngState=20260906;
+function rng(){rngState^=rngState<<13;rngState^=rngState>>>17;rngState^=rngState<<5;return (rngState>>>0)/4294967296;}
+function categorical(probs){const u=rng();let sum=0;for(let i=0;i<probs.length;i++){sum+=probs[i];if(u<sum)return i;}return probs.length-1;}
+function draftQ(){const tea=Number($('#draft-tea').value)/100;return [tea,(1-tea)*.6,(1-tea)*.4];}
+function resetSamples(){sampleCounts=[0,0,0];sampleN=0;sampleRejects=0;rngState=20260906;renderSamples();}
+function renderSamples(){
+ const q=draftQ();$('#tea-out').textContent=pct(q[0]);$('#sample-accept-rate').textContent=pct(q.reduce((s,x,i)=>s+Math.min(x,targetP[i]),0));
+ $('#sample-n').textContent=sampleN.toLocaleString('zh-CN');$('#sample-rejected').textContent=sampleRejects.toLocaleString('zh-CN');
+ const container=$('#distribution-rows');container.replaceChildren();
+ wordNames.forEach((name,i)=>{const row=document.createElement('div');row.className='dist-row';const title=document.createElement('span');title.className='dist-title';title.textContent=name;row.append(title);
+  const bars=document.createElement('div');bars.className='dist-bars';[q[i],targetP[i],sampleN?sampleCounts[i]/sampleN:0].forEach((val,k)=>{const track=document.createElement('div');track.className='dist-bar';const fill=document.createElement('span');fill.className=k===1?'target':k===2?'empirical':'';fill.style.width=pct(val,2);track.append(fill);track.setAttribute('role','img');track.setAttribute('aria-label',(k===0?'草稿':k===1?'目标':'观测')+' '+name+' '+pct(val,1));bars.append(track);});row.append(bars);
+  const num=document.createElement('div');num.className='dist-num';[pct(q[i],1),pct(targetP[i],1),sampleN?pct(sampleCounts[i]/sampleN,1):'—'].forEach(t=>{const el=document.createElement('span');el.textContent=t;num.append(el);});row.append(num);container.append(row);
+ });
+ $('#sample-status').textContent=sampleN?`已抽样 ${sampleN.toLocaleString('zh-CN')} 次。校正后的实际频率：${sampleCounts.map(x=>pct(x/sampleN,1)).join(' / ')}。重复抽样会围绕目标 50 / 30 / 20 波动。`:'调节草稿偏好，再点“模拟”。看看它最终是否仍接近目标的 50 / 30 / 20。';
+}
+$('#sample-run').addEventListener('click',()=>{
+ const q=draftQ(),positive=targetP.map((p,i)=>Math.max(0,p-q[i])),mass=positive.reduce((a,b)=>a+b,0),residual=mass>1e-12?positive.map(x=>x/mass):targetP;
+ for(let n=0;n<2000;n++){const x=categorical(q);let y=x;if(rng()>=Math.min(1,targetP[x]/q[x])){y=categorical(residual);sampleRejects++;}sampleCounts[y]++;sampleN++;}
+ renderSamples();
+});
+$('#draft-tea').addEventListener('input',resetSamples);$('#sample-reset').addEventListener('click',resetSamples);$('#sample-reset').setAttribute('aria-label','清空抽样计数');renderSamples();
+
+// Only this section contains reported production measurements, not simulated results.
+$$('[data-evidence]').forEach(b=>b.addEventListener('click',()=>{
+ const speed=b.dataset.evidence==='speed';setPressed('[data-evidence]','data-evidence',b.dataset.evidence);
+ $('#flash-number').textContent=speed?'+60–85%':'+51%';$('#pro-number').textContent=speed?'+57–78%':'+52%';
+ $('#flash-label').textContent=$('#pro-label').textContent=speed?'单用户生成速度':'系统总输出吞吐量';
+ $('#flash-condition').textContent=speed?'比较条件：匹配实际系统总吞吐量。此处是生成阶段每用户 token/s 的提升，不是所有请求总耗时都减少 60–85%。':'比较条件：最低单用户生成速度为 80 token/s。达到同一服务速度要求时，系统整体每秒输出的 token 更多。';
+ $('#pro-condition').textContent=speed?'比较条件：匹配系统容量。收益受模型、硬件、并发、草稿与目标的一致程度影响；不是本地部署的普遍承诺。':'比较条件：最低单用户生成速度为 35 token/s。这是论文指定服务条件下的吞吐量提升，不是任意任务上的速度倍数。';
+}));
+
+// Knowledge checks stay local and are deliberately retryable.
+const mastered=[false,false,false];
+const quizFeedback=[
+ '正确。第 4 个候选是在包含第 3 个的前缀上计算的；前缀改变后，它不能跳过断点被直接保留。',
+ '正确。额外验证不是免费午餐。高负载下，低把握后缀的预期收益可能小于它占用的资源。',
+ '正确。严格保证是目标分布相同；随机采样的具体文本仍可能不同，也不保证答案没有事实错误。'
+];
+$$('.quiz-card').forEach(card=>{$$('button[data-answer]',card).forEach(b=>b.addEventListener('click',()=>{
+ const i=Number(card.dataset.question),ok=b.dataset.answer==='1';$$('button[data-answer]',card).forEach(x=>{x.classList.remove('correct','wrong');x.setAttribute('aria-pressed',String(x===b));});b.classList.add(ok?'correct':'wrong');
+ $('.quiz-feedback',card).textContent=ok?quizFeedback[i]:['还差一点。想一想：第 4 个的预测用了那个被拒绝的第 3 个作为上下文。再试一次。','不是并行能力消失了，而是多做这些计算的机会成本升高了。再试一次。','把两次掷硬币都要求得到同一面，和要求硬币概率相同，是不同的事。再试一次。'][i];
+ mastered[i]=ok;const count=mastered.filter(Boolean).length;$('#quiz-score').textContent=count===3?'全部掌握 · 3 / 3':'已掌握 '+count+' / 3';$$('.score-dots i').forEach((el,j)=>el.classList.toggle('done',mastered[j]));
+}));});
+
+// Native-scroll navigation; no dependence on network, libraries or browser storage.
+function updateProgress(){const max=document.documentElement.scrollHeight-innerHeight;$('#reading-progress').style.width=(max>0?100*scrollY/max:0)+'%';let active='';$$('main section[id]').forEach(sec=>{if(sec.getBoundingClientRect().top<150)active=sec.id;});$$('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#'+active));}
+addEventListener('scroll',updateProgress,{passive:true});addEventListener('resize',updateProgress);updateProgress();
+// Stop user-started animations when the page is hidden.
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseAR();pauseSpec();}});
+</script>
+</body>
+</html>

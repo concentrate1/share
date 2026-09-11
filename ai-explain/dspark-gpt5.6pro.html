@@ -1,0 +1,2060 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-depth="beginner">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="面向 Transformer 初学者的 DeepSeek DSpark 交互式原理讲解。" />
+  <title>DSpark 原理实验室｜DeepSeek 投机解码交互讲解</title>
+  <style>
+    :root {
+      --bg: #f5f7f4;
+      --bg-elevated: #ffffff;
+      --bg-soft: #edf1ee;
+      --ink: #10231f;
+      --ink-2: #40514c;
+      --ink-3: #6c7975;
+      --line: #d9e1dd;
+      --hero: #071a19;
+      --hero-2: #0d2824;
+      --mint: #34d399;
+      --mint-2: #0f9f73;
+      --violet: #7c6cf2;
+      --amber: #f2ad4a;
+      --red: #e76565;
+      --blue: #4d86e8;
+      --shadow: 0 20px 60px rgba(8, 37, 30, 0.10);
+      --shadow-soft: 0 10px 28px rgba(8, 37, 30, 0.07);
+      --radius: 22px;
+      --radius-sm: 13px;
+      --max: 1180px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #07110f;
+      --bg-elevated: #0d1b18;
+      --bg-soft: #12231f;
+      --ink: #eaf7f1;
+      --ink-2: #b7cac2;
+      --ink-3: #83978f;
+      --line: #203a33;
+      --hero: #030a09;
+      --hero-2: #0a211c;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.65;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    a { color: inherit; }
+    img, svg { max-width: 100%; }
+    ::selection { background: rgba(52, 211, 153, 0.28); }
+
+    .skip-link {
+      position: fixed;
+      z-index: 999;
+      left: 16px;
+      top: -60px;
+      padding: 10px 14px;
+      background: var(--ink);
+      color: var(--bg);
+      border-radius: 8px;
+      transition: top .2s ease;
+    }
+    .skip-link:focus { top: 14px; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 80;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 20px;
+      min-height: 64px;
+      padding: 0 24px;
+      background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-weight: 790;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      background: var(--ink);
+      color: var(--mint);
+      font-family: var(--mono);
+      font-size: 13px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+    }
+    .topnav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .topnav a {
+      padding: 8px 10px;
+      color: var(--ink-2);
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 8px;
+      white-space: nowrap;
+      transition: background .2s ease, color .2s ease;
+    }
+    .topnav a:hover, .topnav a.active {
+      color: var(--ink);
+      background: var(--bg-soft);
+    }
+    .top-actions { display: flex; gap: 8px; }
+    .icon-btn, .small-btn, .seg-btn, .primary-btn, .secondary-btn {
+      border: 0;
+      cursor: pointer;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease, opacity .18s ease;
+    }
+    .icon-btn:hover, .small-btn:hover, .seg-btn:hover, .primary-btn:hover, .secondary-btn:hover { transform: translateY(-1px); }
+    .icon-btn:focus-visible, .small-btn:focus-visible, .seg-btn:focus-visible, .primary-btn:focus-visible, .secondary-btn:focus-visible,
+    input:focus-visible, select:focus-visible, a:focus-visible {
+      outline: 3px solid rgba(52, 211, 153, .33);
+      outline-offset: 2px;
+    }
+    .icon-btn {
+      min-width: 38px;
+      height: 38px;
+      padding: 0 11px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg-elevated);
+      color: var(--ink-2);
+      font-size: 13px;
+    }
+    #depthToggle { min-width: 92px; }
+
+    .progress-rail {
+      position: fixed;
+      z-index: 90;
+      left: 0;
+      top: 64px;
+      width: 100%;
+      height: 3px;
+      background: transparent;
+      pointer-events: none;
+    }
+    .progress-rail > span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--mint), var(--violet));
+      transition: width .1s linear;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 72% 22%, rgba(124,108,242,.20), transparent 29%),
+        radial-gradient(circle at 15% 82%, rgba(52,211,153,.18), transparent 31%),
+        linear-gradient(135deg, var(--hero), var(--hero-2));
+      color: #f4fff9;
+      min-height: calc(100vh - 64px);
+      display: grid;
+      align-items: center;
+      padding: 88px 24px 76px;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .18;
+      background-image:
+        linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 92%);
+    }
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      width: min(var(--max), 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.03fr) minmax(420px, .97fr);
+      gap: 64px;
+      align-items: center;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 22px;
+      color: #b5f7dd;
+      font-size: 13px;
+      font-weight: 760;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 26px;
+      height: 2px;
+      background: var(--mint);
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    .hero h1 {
+      margin-bottom: 24px;
+      max-width: 770px;
+      font-size: clamp(46px, 6vw, 82px);
+      line-height: .99;
+      letter-spacing: -0.055em;
+      font-weight: 860;
+    }
+    .hero h1 .accent { color: var(--mint); }
+    .hero h1 .subline {
+      display: block;
+      margin-top: 12px;
+      color: #dcebe5;
+      font-size: .55em;
+      line-height: 1.18;
+      letter-spacing: -0.035em;
+      font-weight: 670;
+    }
+    .hero-lead {
+      max-width: 650px;
+      margin-bottom: 30px;
+      color: #bcd0c8;
+      font-size: clamp(17px, 2vw, 20px);
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 34px; }
+    .primary-btn, .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 48px;
+      padding: 0 19px;
+      border-radius: 12px;
+      font-weight: 760;
+      text-decoration: none;
+    }
+    .primary-btn { background: var(--mint); color: #06241a; }
+    .secondary-btn { background: rgba(255,255,255,.07); color: #effcf7; border: 1px solid rgba(255,255,255,.15); }
+    .hero-facts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      max-width: 650px;
+    }
+    .hero-fact {
+      padding-left: 14px;
+      border-left: 2px solid rgba(52,211,153,.55);
+    }
+    .hero-fact strong { display: block; font-size: 17px; color: #fff; }
+    .hero-fact span { display: block; margin-top: 2px; color: #9fb6ad; font-size: 12px; }
+
+    .hero-machine {
+      position: relative;
+      min-height: 590px;
+      display: grid;
+      align-content: center;
+      gap: 16px;
+      padding: 26px;
+      border: 1px solid rgba(255,255,255,.11);
+      background: rgba(3, 15, 12, .48);
+      box-shadow: 0 32px 90px rgba(0,0,0,.28);
+      backdrop-filter: blur(12px);
+    }
+    .hero-machine::after {
+      content: "LIVE EXPLAINER";
+      position: absolute;
+      top: 13px;
+      right: 16px;
+      color: rgba(255,255,255,.33);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .14em;
+    }
+    .machine-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 14px;
+      padding: 18px 0 8px;
+    }
+    .machine-head h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .machine-head span { color: #8da59b; font-family: var(--mono); font-size: 11px; }
+    .race-lane {
+      display: grid;
+      grid-template-columns: 112px 1fr 46px;
+      gap: 12px;
+      align-items: center;
+      min-height: 108px;
+      padding: 16px;
+      border-top: 1px solid rgba(255,255,255,.09);
+    }
+    .lane-label strong { display: block; font-size: 14px; }
+    .lane-label small { color: #829a90; font-size: 11px; }
+    .lane-track {
+      position: relative;
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px;
+      overflow: hidden;
+      background: rgba(255,255,255,.035);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .lane-track::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 42px;
+      background: linear-gradient(90deg, transparent, rgba(52,211,153,.12), transparent);
+      animation: scan 2.8s linear infinite;
+    }
+    .race-lane:nth-of-type(3) .lane-track::before { animation-duration: 2.1s; }
+    .race-lane:nth-of-type(4) .lane-track::before { animation-duration: 1.35s; }
+    @keyframes scan { from { left: -55px; } to { left: calc(100% + 55px); } }
+    .mini-token {
+      position: relative;
+      z-index: 1;
+      min-width: 28px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+      padding: 0 7px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      color: #e9fff6;
+      font-family: var(--mono);
+      font-size: 11px;
+      opacity: .9;
+      transform-origin: center;
+      animation: tokenPulse 2.4s ease-in-out infinite;
+    }
+    .race-lane:nth-of-type(3) .mini-token { animation-delay: .2s; }
+    .race-lane:nth-of-type(4) .mini-token { background: rgba(52,211,153,.11); border-color: rgba(52,211,153,.4); }
+    @keyframes tokenPulse { 0%, 100% { transform: translateY(0); opacity: .72; } 50% { transform: translateY(-3px); opacity: 1; } }
+    .lane-score { text-align: right; font-family: var(--mono); color: #9ab2a8; }
+    .lane-score strong { display: block; color: #fff; font-size: 16px; }
+    .machine-note {
+      margin: 8px 0 0;
+      padding: 14px 16px;
+      color: #a9beb6;
+      border-left: 3px solid var(--mint);
+      background: rgba(52,211,153,.05);
+      font-size: 12px;
+    }
+
+    main { overflow: clip; }
+    .section {
+      position: relative;
+      padding: 108px 24px;
+    }
+    .section.alt { background: var(--bg-elevated); }
+    .section.dark {
+      background: linear-gradient(145deg, #071612, #0b241e);
+      color: #f0fff8;
+    }
+    .container { width: min(var(--max), 100%); margin: 0 auto; }
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, .64fr);
+      gap: 44px;
+      align-items: end;
+      margin-bottom: 48px;
+    }
+    .kicker {
+      display: block;
+      margin-bottom: 13px;
+      color: var(--mint-2);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+    }
+    .dark .kicker { color: var(--mint); }
+    .section-heading h2 {
+      margin-bottom: 0;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+    .section-heading p { margin: 0; color: var(--ink-2); font-size: 17px; }
+    .dark .section-heading p { color: #a9beb5; }
+    .section-heading code { font-family: var(--mono); font-size: .92em; }
+
+    .thesis-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 28px;
+      align-items: start;
+      padding: clamp(28px, 5vw, 58px);
+      background: var(--ink);
+      color: var(--bg);
+      box-shadow: var(--shadow);
+    }
+    html[data-theme="dark"] .thesis-card { background: #eaf7f1; color: #10231f; }
+    .thesis-card .big-number {
+      font-size: 56px;
+      font-weight: 860;
+      color: var(--mint);
+      line-height: .9;
+      letter-spacing: -.06em;
+    }
+    .thesis-card h2 {
+      max-width: 970px;
+      margin-bottom: 16px;
+      font-size: clamp(28px, 4.2vw, 48px);
+      line-height: 1.2;
+      letter-spacing: -.04em;
+    }
+    .thesis-card p { margin: 0; max-width: 880px; opacity: .72; font-size: 17px; }
+    .thesis-card mark { background: transparent; color: var(--mint); }
+
+    .definition-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+    }
+    .definition-item { padding: 24px; border-right: 1px solid var(--line); }
+    .definition-item:last-child { border-right: 0; }
+    .definition-item b { display: block; margin-bottom: 6px; }
+    .definition-item p { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+    .lab-shell {
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+    }
+    .lab-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      min-height: 62px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg-soft);
+    }
+    .lab-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 780;
+    }
+    .lab-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 5px rgba(52,211,153,.13); }
+    .lab-note { color: var(--ink-3); font-size: 12px; }
+    .segmented { display: inline-flex; gap: 4px; padding: 4px; background: var(--bg-soft); border: 1px solid var(--line); }
+    .seg-btn {
+      min-height: 36px;
+      padding: 0 13px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      color: var(--ink-2);
+      font-size: 13px;
+      font-weight: 690;
+    }
+    .seg-btn.active { background: var(--bg-elevated); border-color: var(--line); color: var(--ink); box-shadow: 0 2px 8px rgba(8,37,30,.06); }
+    .small-btn {
+      min-height: 38px;
+      padding: 0 14px;
+      background: var(--ink);
+      color: var(--bg);
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 730;
+    }
+    .small-btn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line); }
+    .small-btn.mint { background: var(--mint); color: #06241a; }
+    .small-btn:disabled { cursor: not-allowed; opacity: .45; transform: none; }
+
+    .generation-grid {
+      display: grid;
+      grid-template-columns: minmax(240px, .36fr) minmax(0, 1fr);
+      min-height: 500px;
+    }
+    .model-column {
+      padding: 28px;
+      border-right: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg-soft) 62%, transparent);
+    }
+    .model-node {
+      position: relative;
+      padding: 20px;
+      margin-bottom: 18px;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+    }
+    .model-node.big { border-left: 4px solid var(--violet); }
+    .model-node.small { border-left: 4px solid var(--mint); }
+    .model-node.hidden { display: none; }
+    .model-node.pulse { animation: modelFlash .48s ease; }
+    @keyframes modelFlash { 0% { box-shadow: 0 0 0 0 rgba(124,108,242,.45); } 100% { box-shadow: 0 0 0 18px rgba(124,108,242,0); } }
+    .model-node small { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .model-node strong { display: block; margin: 4px 0; }
+    .model-node p { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .model-cost {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--line);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+    .sim-column { display: grid; grid-template-rows: 1fr auto; min-width: 0; }
+    .sim-stage { padding: 32px; min-height: 370px; }
+    .sim-prompt { color: var(--ink-3); font-size: 13px; }
+    .sim-output {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 8px;
+      min-height: 96px;
+      margin: 18px 0 30px;
+      padding: 20px;
+      border: 1px dashed var(--line);
+      background: var(--bg-soft);
+    }
+    .output-token, .draft-token, .verify-token, .scheduler-token {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .output-token { animation: tokenIn .28s ease both; }
+    @keyframes tokenIn { from { opacity: 0; transform: translateY(7px) scale(.96); } to { opacity: 1; transform: none; } }
+    .draft-area { min-height: 110px; }
+    .draft-caption { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 10px; color: var(--ink-2); font-size: 13px; }
+    .draft-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .draft-token { color: var(--ink-2); border-style: dashed; }
+    .draft-token.accept { border-color: var(--mint-2); background: rgba(52,211,153,.10); color: var(--ink); }
+    .draft-token.reject { border-color: var(--red); background: rgba(231,101,101,.08); color: var(--red); text-decoration: line-through; }
+    .draft-token.drop { opacity: .35; filter: grayscale(.8); }
+    .draft-token.bonus { border-color: var(--violet); background: rgba(124,108,242,.10); }
+    .sim-status { min-height: 26px; margin-top: 14px; color: var(--ink-2); font-size: 13px; }
+    .sim-controls {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 18px 24px;
+      border-top: 1px solid var(--line);
+      background: var(--bg-soft);
+    }
+    .sim-metrics { display: flex; justify-content: flex-end; gap: 28px; min-width: 0; }
+    .metric { text-align: right; }
+    .metric strong { display: block; font-size: 22px; letter-spacing: -.03em; }
+    .metric span { display: block; color: var(--ink-3); font-size: 11px; }
+
+    .formula-band {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 24px;
+      align-items: center;
+      margin-top: 28px;
+      padding: 24px 28px;
+      border-left: 4px solid var(--violet);
+      background: color-mix(in srgb, var(--violet) 8%, var(--bg-elevated));
+    }
+    .formula {
+      font-family: var(--mono);
+      font-size: clamp(18px, 2.5vw, 26px);
+      white-space: nowrap;
+    }
+    .formula-band p { margin: 0; color: var(--ink-2); }
+
+    .tradeoff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 38px;
+    }
+    .trade-card {
+      position: relative;
+      min-height: 305px;
+      padding: 26px;
+      border-top: 4px solid var(--line);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+    }
+    .trade-card:nth-child(1) { border-color: var(--amber); }
+    .trade-card:nth-child(2) { border-color: var(--blue); }
+    .trade-card:nth-child(3) { border-color: var(--mint); }
+    .trade-card .index { font-family: var(--mono); color: var(--ink-3); font-size: 11px; }
+    .trade-card h3 { margin: 10px 0 8px; font-size: 22px; letter-spacing: -.025em; }
+    .trade-card p { color: var(--ink-2); font-size: 14px; }
+    .trade-visual { display: flex; align-items: center; gap: 6px; min-height: 70px; margin: 18px 0; }
+    .trade-visual .chip {
+      min-width: 34px;
+      min-height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: var(--bg-soft);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .trade-visual .arrow { color: var(--ink-3); }
+    .trade-visual.parallel .chip { transform: translateY(var(--dy, 0)); }
+    .trade-card ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+
+    .phrase-lab { display: grid; grid-template-columns: minmax(0, .42fr) minmax(0, .58fr); }
+    .phrase-controls { padding: 30px; border-right: 1px solid var(--line); }
+    .phrase-controls h3 { margin-bottom: 8px; font-size: 24px; }
+    .phrase-controls p { color: var(--ink-2); font-size: 14px; }
+    .choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0; }
+    .choice-btn {
+      min-width: 56px;
+      height: 44px;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      cursor: pointer;
+      font-weight: 760;
+    }
+    .choice-btn.active { border-color: var(--mint-2); background: rgba(52,211,153,.12); }
+    .phrase-output {
+      padding: 28px 30px;
+      background: color-mix(in srgb, var(--bg-soft) 56%, transparent);
+    }
+    .speech {
+      padding: 18px 20px;
+      margin-bottom: 22px;
+      border-left: 4px solid var(--violet);
+      background: var(--bg-elevated);
+      font-size: 18px;
+    }
+    .prob-row {
+      display: grid;
+      grid-template-columns: 78px 1fr 48px;
+      gap: 12px;
+      align-items: center;
+      margin: 13px 0;
+      font-size: 13px;
+    }
+    .prob-track { height: 12px; background: var(--line); overflow: hidden; }
+    .prob-fill { height: 100%; width: 50%; background: var(--blue); transition: width .45s ease; }
+    .prob-row.corrected .prob-fill { background: var(--mint-2); }
+    .transition-callout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: start;
+      margin-top: 22px;
+      padding: 16px;
+      background: rgba(52,211,153,.08);
+      border: 1px solid rgba(52,211,153,.25);
+      font-size: 13px;
+      color: var(--ink-2);
+    }
+
+    .cycle-shell { overflow: hidden; }
+    .cycle-grid {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: 600px;
+    }
+    .cycle-steps {
+      padding: 26px 0;
+      border-right: 1px solid var(--line);
+      background: var(--bg-soft);
+    }
+    .cycle-step {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 11px;
+      align-items: center;
+      padding: 15px 22px;
+      border: 0;
+      border-left: 3px solid transparent;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      color: var(--ink-2);
+    }
+    .cycle-step .step-num {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      border-radius: 50%;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .cycle-step.active { border-left-color: var(--mint-2); background: var(--bg-elevated); color: var(--ink); }
+    .cycle-step.active .step-num { background: var(--mint); color: #06241a; border-color: transparent; }
+    .cycle-stage { display: grid; grid-template-rows: 1fr auto; min-width: 0; }
+    .cycle-canvas {
+      position: relative;
+      min-height: 500px;
+      padding: 42px;
+      overflow: hidden;
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 32px 32px;
+      background-color: color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-soft));
+    }
+    .cycle-flow {
+      height: 100%;
+      display: grid;
+      grid-template-columns: .9fr 42px 1.2fr 42px .9fr;
+      align-items: center;
+      gap: 0;
+    }
+    .cycle-box {
+      position: relative;
+      min-height: 265px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      opacity: .42;
+      transform: scale(.97);
+      transition: opacity .35s ease, transform .35s ease, border-color .35s ease, box-shadow .35s ease;
+    }
+    .cycle-box.active { opacity: 1; transform: scale(1); border-color: rgba(52,211,153,.7); box-shadow: 0 18px 50px rgba(8,37,30,.12); }
+    .cycle-box.done { opacity: .82; transform: scale(.99); }
+    .cycle-box h3 { margin-bottom: 4px; font-size: 18px; }
+    .cycle-box small { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 10px; text-transform: uppercase; }
+    .flow-arrow { text-align: center; color: var(--ink-3); font-size: 26px; }
+    .token-cluster { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0; }
+    .flow-token {
+      min-width: 33px;
+      min-height: 34px;
+      display: grid;
+      place-items: center;
+      padding: 0 7px;
+      border: 1px solid var(--line);
+      background: var(--bg-soft);
+      font-family: var(--mono);
+      font-size: 12px;
+      transition: opacity .3s ease, transform .3s ease, background .3s ease, border-color .3s ease;
+    }
+    .flow-token.new { border-color: var(--violet); background: rgba(124,108,242,.09); }
+    .flow-token.keep { border-color: var(--mint-2); background: rgba(52,211,153,.11); }
+    .flow-token.drop { opacity: .25; text-decoration: line-through; }
+    .flow-token.reject { border-color: var(--red); color: var(--red); text-decoration: line-through; }
+    .flow-token.correct { border-color: var(--amber); background: rgba(242,173,74,.10); }
+    .confidence-mini { display: grid; gap: 6px; margin-top: 18px; }
+    .confidence-mini div { display: grid; grid-template-columns: 22px 1fr 36px; gap: 8px; align-items: center; color: var(--ink-3); font-size: 10px; }
+    .confidence-mini i { height: 5px; background: var(--line); }
+    .confidence-mini i > span { display: block; height: 100%; background: var(--mint-2); width: var(--w); }
+    .cycle-caption {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 22px;
+      align-items: center;
+      min-height: 98px;
+      padding: 18px 24px;
+      border-top: 1px solid var(--line);
+      background: var(--bg-soft);
+    }
+    .cycle-caption p { margin: 0; color: var(--ink-2); }
+    .cycle-actions { display: flex; gap: 8px; }
+
+    .scheduler-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, .31fr) minmax(0, .69fr);
+      min-height: 690px;
+    }
+    .scheduler-controls {
+      padding: 30px;
+      border-right: 1px solid var(--line);
+      background: var(--bg-soft);
+    }
+    .scheduler-controls h3 { margin-bottom: 8px; font-size: 23px; }
+    .scheduler-controls > p { color: var(--ink-2); font-size: 14px; }
+    .control-block { margin: 28px 0; }
+    .control-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-weight: 700; }
+    .control-label output { color: var(--mint-2); font-family: var(--mono); }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--mint-2);
+      cursor: pointer;
+    }
+    .load-words { display: flex; justify-content: space-between; color: var(--ink-3); font-size: 11px; }
+    .preset-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .preset-row .seg-btn { border: 1px solid var(--line); background: var(--bg-elevated); }
+    .scheduler-summary { display: grid; gap: 10px; margin-top: 24px; }
+    .summary-stat { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .summary-stat span { color: var(--ink-3); font-size: 12px; }
+    .summary-stat strong { font-family: var(--mono); font-size: 16px; }
+    .scheduler-main { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
+    .scheduler-chart {
+      display: grid;
+      grid-template-columns: 1fr 150px;
+      gap: 20px;
+      align-items: center;
+      min-height: 185px;
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--line);
+    }
+    .scheduler-chart svg { width: 100%; height: 128px; overflow: visible; }
+    .chart-side { font-size: 12px; color: var(--ink-2); }
+    .chart-side strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 18px; }
+    .request-list { display: grid; gap: 22px; padding: 28px; }
+    .request-row { display: grid; grid-template-columns: 96px 1fr; gap: 18px; align-items: start; }
+    .request-meta strong { display: block; }
+    .request-meta small { color: var(--ink-3); font-size: 11px; }
+    .request-tokens { display: grid; grid-template-columns: repeat(6, minmax(70px, 1fr)); gap: 7px; }
+    .scheduler-token {
+      position: relative;
+      min-height: 76px;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 5px;
+      border-color: var(--line);
+      background: var(--bg-soft);
+      transition: opacity .3s ease, transform .3s ease, border-color .3s ease, background .3s ease;
+    }
+    .scheduler-token.keep { border-color: var(--mint-2); background: rgba(52,211,153,.10); transform: translateY(-2px); }
+    .scheduler-token.drop { opacity: .34; }
+    .scheduler-token b { font-size: 12px; }
+    .scheduler-token small { color: var(--ink-3); font-size: 9px; font-family: var(--mono); }
+    .scheduler-token .rank { position: absolute; top: 3px; right: 4px; color: var(--ink-3); font-size: 8px; }
+    .scheduler-explainer {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      padding: 18px 28px;
+      border-top: 1px solid var(--line);
+      background: var(--bg-soft);
+      color: var(--ink-2);
+      font-size: 13px;
+    }
+    .scheduler-explainer strong { color: var(--ink); }
+
+    .lossless-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .46fr) minmax(0, .54fr);
+      gap: 32px;
+      align-items: stretch;
+    }
+    .rule-stack { display: grid; gap: 0; border: 1px solid rgba(255,255,255,.13); }
+    .rule {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 16px;
+      padding: 23px;
+      border-bottom: 1px solid rgba(255,255,255,.11);
+      background: rgba(255,255,255,.035);
+    }
+    .rule:last-child { border-bottom: 0; }
+    .rule-num { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--mint); color: #06241a; font-family: var(--mono); font-weight: 800; }
+    .rule h3 { margin-bottom: 5px; font-size: 18px; }
+    .rule p { margin: 0; color: #a7bbb3; font-size: 13px; }
+    .distribution-lab { padding: 28px; background: #f3fbf7; color: #10231f; box-shadow: 0 28px 80px rgba(0,0,0,.25); }
+    .distribution-lab h3 { margin-bottom: 6px; font-size: 23px; }
+    .distribution-lab > p { color: #53645e; font-size: 13px; }
+    .dist-grid { display: grid; grid-template-columns: 74px 1fr 1fr; gap: 10px 14px; align-items: center; margin: 24px 0; }
+    .dist-grid .head { color: #60736c; font-size: 11px; font-weight: 760; text-transform: uppercase; }
+    .dist-track { height: 24px; background: #dce8e2; position: relative; overflow: hidden; }
+    .dist-fill { height: 100%; background: var(--violet); transition: width .45s ease; }
+    .dist-fill.observed { background: var(--mint-2); }
+    .dist-value { position: absolute; right: 6px; top: 2px; font-family: var(--mono); font-size: 10px; color: #10231f; }
+    .dist-actions { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+    .dist-error { margin-left: auto; color: #60736c; font-family: var(--mono); font-size: 11px; }
+    .advanced-box {
+      display: none;
+      margin-top: 22px;
+      padding: 18px;
+      border-left: 3px solid var(--violet);
+      background: rgba(124,108,242,.07);
+      color: var(--ink-2);
+      font-size: 13px;
+    }
+    html[data-depth="advanced"] .advanced-box { display: block; }
+    .dark .advanced-box { color: #b7cbc2; background: rgba(124,108,242,.11); }
+    .advanced-inline { display: none; }
+    html[data-depth="advanced"] .advanced-inline { display: inline; }
+
+    .results-layout {
+      display: grid;
+      grid-template-columns: minmax(0, .62fr) minmax(290px, .38fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+    .benchmark-panel, .production-panel { border: 1px solid var(--line); background: var(--bg-elevated); }
+    .panel-head { display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--line); background: var(--bg-soft); }
+    .panel-head h3 { margin: 0; font-size: 17px; }
+    .bench-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+    .bench-controls select {
+      min-height: 36px;
+      padding: 0 30px 0 10px;
+      border: 1px solid var(--line);
+      background: var(--bg-elevated);
+      color: var(--ink);
+      border-radius: 7px;
+      font-size: 12px;
+    }
+    .bar-chart { display: grid; gap: 23px; padding: 34px 28px 24px; }
+    .bar-row { display: grid; grid-template-columns: 76px 1fr 52px; gap: 13px; align-items: center; }
+    .bar-row label { font-weight: 720; font-size: 13px; }
+    .bar-track { position: relative; height: 30px; background: var(--bg-soft); overflow: hidden; }
+    .bar-track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(90deg, transparent calc(100% - 1px), rgba(16,35,31,.08) 1px);
+      background-size: 20% 100%;
+      pointer-events: none;
+    }
+    .bar-fill { height: 100%; width: 0; background: var(--blue); transition: width .65s cubic-bezier(.2,.7,.2,1); }
+    .bar-row:nth-child(2) .bar-fill { background: var(--violet); }
+    .bar-row:nth-child(3) .bar-fill { background: var(--mint-2); }
+    .bar-value { font-family: var(--mono); font-weight: 760; text-align: right; }
+    .bench-callout { margin: 2px 28px 28px; padding: 16px 18px; border-left: 4px solid var(--mint-2); background: rgba(52,211,153,.08); color: var(--ink-2); font-size: 13px; }
+    .bench-callout strong { color: var(--ink); }
+    .production-panel { padding-bottom: 22px; }
+    .range-card { padding: 24px 24px 4px; }
+    .range-card + .range-card { border-top: 1px solid var(--line); margin-top: 22px; }
+    .range-card h4 { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 12px; font-size: 15px; }
+    .range-card h4 span { color: var(--mint-2); font-family: var(--mono); }
+    .range-track { position: relative; height: 18px; background: var(--bg-soft); margin: 12px 0; }
+    .range-fill { position: absolute; top: 0; bottom: 0; left: var(--left); width: var(--width); background: linear-gradient(90deg, var(--violet), var(--mint)); }
+    .range-scale { display: flex; justify-content: space-between; color: var(--ink-3); font-family: var(--mono); font-size: 9px; }
+    .range-card p { color: var(--ink-2); font-size: 12px; }
+    .caveat { margin: 24px; padding: 14px; border: 1px solid var(--line); color: var(--ink-3); font-size: 11px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .45fr) minmax(0, .55fr);
+      gap: 26px;
+      align-items: start;
+    }
+    .takeaway-list { display: grid; border-top: 1px solid var(--line); }
+    .takeaway {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 17px;
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .takeaway b { font-family: var(--mono); color: var(--mint-2); }
+    .takeaway h3 { margin-bottom: 4px; font-size: 19px; }
+    .takeaway p { margin: 0; color: var(--ink-2); font-size: 13px; }
+    .faq { border: 1px solid var(--line); background: var(--bg-elevated); }
+    details { border-bottom: 1px solid var(--line); }
+    details:last-child { border-bottom: 0; }
+    summary {
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px 22px;
+      cursor: pointer;
+      font-weight: 740;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--mint-2); font-size: 22px; line-height: 1; }
+    details[open] summary::after { content: "−"; }
+    details p { margin: 0; padding: 0 22px 20px; color: var(--ink-2); font-size: 14px; }
+
+    .sources {
+      padding: 58px 24px;
+      background: #06100e;
+      color: #dff3ea;
+    }
+    .sources-inner { width: min(var(--max), 100%); margin: 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 42px; }
+    .sources h2 { margin-bottom: 10px; font-size: 24px; }
+    .sources p { margin: 0; color: #91a99f; font-size: 13px; }
+    .source-list { display: grid; gap: 10px; }
+    .source-link {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 13px;
+      align-items: center;
+      padding: 14px 16px;
+      border: 1px solid rgba(255,255,255,.10);
+      color: #eaf7f1;
+      text-decoration: none;
+      background: rgba(255,255,255,.03);
+    }
+    .source-link:hover { border-color: rgba(52,211,153,.5); background: rgba(52,211,153,.05); }
+    .source-link small { display: block; color: #819a90; }
+    .source-icon { color: var(--mint); font-family: var(--mono); }
+    .footer-bottom {
+      width: min(var(--max), 100%);
+      margin: 36px auto 0;
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      border-top: 1px solid rgba(255,255,255,.10);
+      color: #718a80;
+      font-size: 11px;
+    }
+
+    .tooltip-term {
+      position: relative;
+      border-bottom: 1px dashed currentColor;
+      cursor: help;
+    }
+    .tooltip-term:hover::after, .tooltip-term:focus::after {
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      width: 230px;
+      padding: 10px 12px;
+      transform: translateX(-50%);
+      background: var(--ink);
+      color: var(--bg);
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      box-shadow: var(--shadow-soft);
+    }
+
+    @media (max-width: 1050px) {
+      .topnav { display: none; }
+      .topbar { grid-template-columns: 1fr auto; }
+      .hero-inner { grid-template-columns: 1fr; }
+      .hero-machine { min-height: auto; }
+      .hero { min-height: auto; }
+      .section-heading { grid-template-columns: 1fr; gap: 18px; }
+      .tradeoff-grid { grid-template-columns: 1fr; }
+      .trade-card { min-height: auto; }
+      .cycle-flow { grid-template-columns: 1fr; gap: 12px; }
+      .flow-arrow { transform: rotate(90deg); }
+      .cycle-box { min-height: 210px; }
+      .cycle-canvas { min-height: 850px; }
+      .request-tokens { grid-template-columns: repeat(3, 1fr); }
+      .results-layout, .summary-grid, .lossless-grid { grid-template-columns: 1fr; }
+      .sources-inner { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .topbar { padding: 0 14px; }
+      #depthToggle { min-width: 42px; font-size: 0; }
+      #depthToggle::after { content: "层级"; font-size: 12px; }
+      .hero { padding: 70px 18px 54px; }
+      .hero-inner { gap: 42px; }
+      .hero h1 { font-size: clamp(42px, 13vw, 66px); }
+      .hero-facts { grid-template-columns: 1fr; }
+      .hero-machine { padding: 16px; }
+      .race-lane { grid-template-columns: 90px 1fr; }
+      .lane-score { grid-column: 2; text-align: left; }
+      .section { padding: 78px 18px; }
+      .thesis-card { grid-template-columns: 1fr; }
+      .definition-strip { grid-template-columns: 1fr; }
+      .definition-item { border-right: 0; border-bottom: 1px solid var(--line); }
+      .definition-item:last-child { border-bottom: 0; }
+      .lab-top { align-items: flex-start; flex-direction: column; }
+      .generation-grid, .phrase-lab, .cycle-grid, .scheduler-layout { grid-template-columns: 1fr; }
+      .model-column, .phrase-controls, .cycle-steps, .scheduler-controls { border-right: 0; border-bottom: 1px solid var(--line); }
+      .cycle-steps { display: flex; overflow-x: auto; padding: 8px; }
+      .cycle-step { min-width: 180px; border-left: 0; border-bottom: 3px solid transparent; }
+      .cycle-step.active { border-bottom-color: var(--mint-2); border-left-color: transparent; }
+      .cycle-canvas { padding: 24px; }
+      .sim-controls { grid-template-columns: 1fr 1fr; }
+      .sim-metrics { grid-column: 1 / -1; justify-content: flex-start; }
+      .metric { text-align: left; }
+      .formula-band { grid-template-columns: 1fr; }
+      .scheduler-chart { grid-template-columns: 1fr; }
+      .request-row { grid-template-columns: 1fr; }
+      .request-tokens { grid-template-columns: repeat(2, 1fr); }
+      .panel-head { align-items: flex-start; flex-direction: column; }
+      .bar-row { grid-template-columns: 64px 1fr 42px; }
+      .footer-bottom { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+
+  <header class="topbar" aria-label="页面导航">
+    <a class="brand" href="#top" aria-label="返回顶部">
+      <span class="brand-mark">DS</span>
+      <span>DSpark 原理实验室</span>
+    </a>
+    <nav class="topnav" aria-label="章节导航">
+      <a href="#bottleneck">为什么慢</a>
+      <a href="#architecture">半自回归</a>
+      <a href="#cycle">完整流程</a>
+      <a href="#scheduler">置信度调度</a>
+      <a href="#results">实验结果</a>
+    </nav>
+    <div class="top-actions">
+      <button id="depthToggle" class="icon-btn" type="button" aria-pressed="false" title="切换解释深度">入门模式</button>
+      <button id="themeToggle" class="icon-btn" type="button" aria-label="切换深色模式" title="切换深色模式">◐</button>
+    </div>
+  </header>
+  <div class="progress-rail" aria-hidden="true"><span id="pageProgress"></span></div>
+
+  <section id="top" class="hero" aria-labelledby="hero-title">
+    <div class="hero-inner">
+      <div>
+        <span class="eyebrow">DeepSeek · Speculative Decoding</span>
+        <h1 id="hero-title"><span class="accent">DSpark</span><span class="subline">不是让模型更聪明，而是让它更快地说出同样的答案。</span></h1>
+        <p class="hero-lead">它在大模型旁边放一个“快手助理”：先批量猜一段，再由大模型一次验收。DSpark 的关键，是让草稿既猜得快、又前后连贯，并且只验证那些值得验证的部分。</p>
+        <div class="hero-actions">
+          <a class="primary-btn" href="#bottleneck">开始交互讲解 <span aria-hidden="true">↓</span></a>
+          <a class="secondary-btn" href="#sources">查看一手资料</a>
+        </div>
+        <div class="hero-facts" aria-label="核心事实">
+          <div class="hero-fact"><strong>不是新模型</strong><span>是附加的推理解码模块</span></div>
+          <div class="hero-fact"><strong>输出分布不变</strong><span>目标模型仍拥有最终决定权</span></div>
+          <div class="hero-fact"><strong>两项核心机制</strong><span>半自回归 + 置信度调度</span></div>
+        </div>
+      </div>
+
+      <div class="hero-machine" aria-label="三种生成方式的速度概念图">
+        <div class="machine-head">
+          <h2>同一句话，目标模型要跑几轮？</h2>
+          <span>概念示意，不是实测</span>
+        </div>
+        <div class="race-lane">
+          <div class="lane-label"><strong>普通生成</strong><small>一轮一个 token</small></div>
+          <div class="lane-track" aria-hidden="true">
+            <span class="mini-token">D</span><span class="mini-token">S</span><span class="mini-token">p</span><span class="mini-token">a</span><span class="mini-token">r</span><span class="mini-token">k</span>
+          </div>
+          <div class="lane-score"><strong>6</strong>轮</div>
+        </div>
+        <div class="race-lane">
+          <div class="lane-label"><strong>普通投机</strong><small>小模型先猜</small></div>
+          <div class="lane-track" aria-hidden="true">
+            <span class="mini-token">DS</span><span class="mini-token">pa</span><span class="mini-token">rk</span>
+          </div>
+          <div class="lane-score"><strong>3</strong>轮</div>
+        </div>
+        <div class="race-lane">
+          <div class="lane-label"><strong>DSpark</strong><small>长草稿 + 聪明验证</small></div>
+          <div class="lane-track" aria-hidden="true">
+            <span class="mini-token">DSpa</span><span class="mini-token">rk</span>
+          </div>
+          <div class="lane-score"><strong>2</strong>轮</div>
+        </div>
+        <p class="machine-note">真正的收益取决于草稿命中率、目标模型、硬件、并发量和服务实现。页面中的动画只用于建立直觉。</p>
+      </div>
+    </div>
+  </section>
+
+  <main id="main">
+    <section class="section" aria-labelledby="thesis-title">
+      <div class="container">
+        <div class="thesis-card">
+          <div class="big-number">01</div>
+          <div>
+            <h2 id="thesis-title">一句话：DSpark 是一套“<mark>先猜、再验、按收益分配验收预算</mark>”的推理加速框架。</h2>
+            <p>草稿模型负责便宜地提出多个候选 token；目标大模型并行验证候选前缀。DSpark 重点解决两个问题：长草稿越往后越容易乱，以及高并发时不值得把所有草稿都送去验证。</p>
+          </div>
+        </div>
+        <div class="definition-strip" aria-label="基础术语">
+          <div class="definition-item"><b>Token</b><p>模型处理文本的基本单位，可能是字、词片段、符号；不一定等于一个自然语言“词”。</p></div>
+          <div class="definition-item"><b>草稿模型 / Drafter</b><p>较轻、较快，负责提出候选；它不是最终裁判。</p></div>
+          <div class="definition-item"><b>目标模型 / Target</b><p>原本要运行的大模型，负责验证、拒绝与纠正候选。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bottleneck" class="section alt" aria-labelledby="bottleneck-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">02 · The bottleneck</span>
+            <h2 id="bottleneck-title">为什么大模型生成慢？<br>因为它通常要一个 token 一个 token 地跑。</h2>
+          </div>
+          <p>Transformer 在训练时能并行处理很多位置；但生成时，下一个 token 依赖刚刚生成的 token，所以解码天然带有串行性。投机解码试图把多轮目标模型调用合并成更少的验证轮次。</p>
+        </div>
+
+        <div class="lab-shell">
+          <div class="lab-top">
+            <div class="lab-title"><span class="lab-dot"></span>交互实验：生成同一句话</div>
+            <div class="segmented" role="group" aria-label="选择生成方式">
+              <button class="seg-btn active gen-mode" data-mode="plain" type="button">普通生成</button>
+              <button class="seg-btn gen-mode" data-mode="spec" type="button">普通投机</button>
+              <button class="seg-btn gen-mode" data-mode="dspark" type="button">DSpark</button>
+            </div>
+          </div>
+          <div class="generation-grid">
+            <aside class="model-column" aria-label="参与模型">
+              <div id="targetNode" class="model-node big">
+                <small>Target model</small><strong>目标大模型</strong>
+                <p>贵、准。每次前向计算都要调动完整目标模型。</p>
+                <div class="model-cost"><span>每轮成本</span><b>高</b></div>
+              </div>
+              <div id="draftNode" class="model-node small hidden">
+                <small>Draft path</small><strong id="draftNodeTitle">草稿模型</strong>
+                <p id="draftNodeText">先便宜地猜一小段，再交给目标模型验收。</p>
+                <div class="model-cost"><span>作用</span><b id="draftNodeCost">提出候选</b></div>
+              </div>
+              <p class="lab-note">目标句子被人为切成可视化 token；真实 tokenizer 的切分会不同。</p>
+            </aside>
+            <div class="sim-column">
+              <div class="sim-stage">
+                <div class="sim-prompt">提示词：请用一句话介绍 DSpark。</div>
+                <div id="simOutput" class="sim-output" aria-live="polite"></div>
+                <div class="draft-area">
+                  <div class="draft-caption"><span>当前轮草稿 / 验证</span><span id="roundLabel">等待开始</span></div>
+                  <div id="draftRow" class="draft-row"></div>
+                  <div id="simStatus" class="sim-status">选择模式，然后点击“播放一遍”。</div>
+                </div>
+              </div>
+              <div class="sim-controls">
+                <button id="runGeneration" class="small-btn mint" type="button">▶ 播放一遍</button>
+                <button id="resetGeneration" class="small-btn ghost" type="button">重置</button>
+                <div class="sim-metrics">
+                  <div class="metric"><strong id="targetCalls">0</strong><span>目标模型轮次</span></div>
+                  <div class="metric"><strong id="tokensPerCall">0.0</strong><span>每轮产出 token</span></div>
+                  <div class="metric"><strong id="wastedDrafts">0</strong><span>被拒 / 丢弃草稿</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="formula-band">
+          <div class="formula">每 token 延迟 ≈ (草稿时间 + 验证时间) ÷ 每轮接受数 τ</div>
+          <p>所以加速只有三条路：草稿更快、草稿更准、验证更聪明。DSpark 同时碰了后两条：让长草稿更连贯，并减少低收益验证。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="section" aria-labelledby="architecture-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">03 · Semi-autoregressive generation</span>
+            <h2 id="architecture-title">第一项核心：重活并行做，轻活顺序做。</h2>
+          </div>
+          <p>纯顺序草稿能理解“前一个词选了什么”，但草稿本身会变慢；纯并行草稿很快，却可能把不同合理表达的片段拼错。DSpark 把两者拆成“并行主干 + 极轻顺序头”。</p>
+        </div>
+
+        <div class="tradeoff-grid">
+          <article class="trade-card">
+            <span class="index">A / AUTOREGRESSIVE</span>
+            <h3>顺序草稿</h3>
+            <p>每个候选都看得到前面实际采样的 token，连续性好；但草稿长度翻倍，草稿耗时也大致跟着增长。</p>
+            <div class="trade-visual" aria-hidden="true"><span class="chip">x₁</span><span class="arrow">→</span><span class="chip">x₂</span><span class="arrow">→</span><span class="chip">x₃</span><span class="arrow">→</span><span class="chip">x₄</span></div>
+            <ul><li>优点：前后依赖完整</li><li>代价：<code>Tdraft ∝ 草稿长度</code></li></ul>
+          </article>
+          <article class="trade-card">
+            <span class="index">B / PARALLEL</span>
+            <h3>并行草稿</h3>
+            <p>一次前向同时预测所有位置，长度增加时延迟增长很小；但同一块里的位置不知道其他位置最终采样了什么。</p>
+            <div class="trade-visual parallel" aria-hidden="true"><span class="chip" style="--dy:-7px">x₁</span><span class="chip" style="--dy:6px">x₂</span><span class="chip" style="--dy:-3px">x₃</span><span class="chip" style="--dy:8px">x₄</span></div>
+            <ul><li>优点：一次产生整块候选</li><li>问题：越往后越容易“串台”</li></ul>
+          </article>
+          <article class="trade-card">
+            <span class="index">C / DSPARK</span>
+            <h3>半自回归草稿</h3>
+            <p>深一些的并行主干先给每个位置一份“基础 logits”；轻量顺序头再根据已采样前缀，加一个很便宜的转移修正。</p>
+            <div class="trade-visual" aria-hidden="true"><span class="chip">并行</span><span class="arrow">＋</span><span class="chip">轻顺序</span><span class="arrow">＝</span><span class="chip">连贯</span></div>
+            <ul><li>保留并行主干的容量与速度</li><li>抑制长草稿的尾部命中率衰减</li></ul>
+          </article>
+        </div>
+
+        <div class="lab-shell phrase-lab">
+          <div class="phrase-controls">
+            <span class="kicker">交互实验 · 多模态碰撞</span>
+            <h3>“不客气”还是“没问题”？</h3>
+            <p>两种回答都合理。纯并行预测时，第 2 个位置不知道第 1 个位置最终选了“不”还是“没”，于是可能拼成“不问题”。</p>
+            <div class="segmented" role="group" aria-label="选择草稿方式">
+              <button id="parallelMode" class="seg-btn active" type="button">纯并行</button>
+              <button id="semiMode" class="seg-btn" type="button">DSpark 顺序头</button>
+            </div>
+            <div class="choice-row" aria-label="选择第一个 token">
+              <button class="choice-btn first-token active" data-token="不" type="button">不</button>
+              <button class="choice-btn first-token" data-token="没" type="button">没</button>
+            </div>
+            <button id="samplePhrase" class="small-btn" type="button">采样第二个 token</button>
+          </div>
+          <div class="phrase-output">
+            <div id="phraseSpeech" class="speech">助手：不 …</div>
+            <div class="prob-row">
+              <span>“客气”</span><div class="prob-track"><div id="politeBar" class="prob-fill"></div></div><strong id="politeValue">52%</strong>
+            </div>
+            <div class="prob-row">
+              <span>“问题”</span><div class="prob-track"><div id="problemBar" class="prob-fill"></div></div><strong id="problemValue">48%</strong>
+            </div>
+            <div id="transitionCallout" class="transition-callout"><span>↳</span><span>纯并行时，第 2 个位置只看到原始上下文，不知道第 1 个位置实际选了什么。</span></div>
+            <div class="advanced-box"><b>进阶视角：</b>并行主干给出位置 <code>k</code> 的基础 logits <code>Uₖ</code>；顺序头增加前缀相关偏置 <code>Bₖ</code>，最终分布正比于 <code>exp(Uₖ + Bₖ)</code>。论文提供 Markov head 与 RNN head 两种实现，默认使用部署更简单的 Markov head。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cycle" class="section alt" aria-labelledby="cycle-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">04 · One decoding cycle</span>
+            <h2 id="cycle-title">一轮 DSpark 到底发生了什么？</h2>
+          </div>
+          <p>下面把论文中的一次解码循环拆成 6 个动作。点击左侧步骤，观察候选 token 如何出现、被截断、被目标模型验收与纠正。</p>
+        </div>
+
+        <div class="lab-shell cycle-shell">
+          <div class="cycle-grid">
+            <div class="cycle-steps" role="tablist" aria-label="DSpark 解码步骤">
+              <button class="cycle-step active" data-step="0" type="button"><span class="step-num">1</span><span>目标模型给锚点</span></button>
+              <button class="cycle-step" data-step="1" type="button"><span class="step-num">2</span><span>并行主干出基础预测</span></button>
+              <button class="cycle-step" data-step="2" type="button"><span class="step-num">3</span><span>轻量顺序头采样</span></button>
+              <button class="cycle-step" data-step="3" type="button"><span class="step-num">4</span><span>调度器截断低收益尾部</span></button>
+              <button class="cycle-step" data-step="4" type="button"><span class="step-num">5</span><span>目标模型并行验证</span></button>
+              <button class="cycle-step" data-step="5" type="button"><span class="step-num">6</span><span>纠正并进入下一轮</span></button>
+            </div>
+            <div class="cycle-stage">
+              <div class="cycle-canvas">
+                <div class="cycle-flow">
+                  <article id="targetStartBox" class="cycle-box active">
+                    <small>① Target</small><h3>目标模型</h3>
+                    <div class="token-cluster"><span class="flow-token">A</span><span class="flow-token">B</span><span class="flow-token">C</span><span id="anchorToken" class="flow-token new">D</span></div>
+                    <p>先正常生成一个 token <b>D</b>，它成为草稿阶段的锚点。</p>
+                  </article>
+                  <div class="flow-arrow" aria-hidden="true">→</div>
+                  <article id="draftBox" class="cycle-box">
+                    <small>② Draft + confidence</small><h3>DSpark 草稿器</h3>
+                    <div id="draftCluster" class="token-cluster">
+                      <span class="flow-token new">E</span><span class="flow-token new">F</span><span class="flow-token new">G</span><span class="flow-token new">H</span>
+                    </div>
+                    <div class="confidence-mini" aria-label="候选置信度">
+                      <div><span>c₁</span><i><span style="--w:96%"></span></i><b>0.96</b></div>
+                      <div><span>c₂</span><i><span style="--w:91%"></span></i><b>0.91</b></div>
+                      <div><span>c₃</span><i><span style="--w:74%"></span></i><b>0.74</b></div>
+                      <div><span>c₄</span><i><span style="--w:39%"></span></i><b>0.39</b></div>
+                    </div>
+                  </article>
+                  <div class="flow-arrow" aria-hidden="true">→</div>
+                  <article id="verifyBox" class="cycle-box">
+                    <small>③ Verify</small><h3>目标模型验收</h3>
+                    <div id="verifyCluster" class="token-cluster"><span class="flow-token">D</span><span class="flow-token">E</span><span class="flow-token">F</span><span class="flow-token">G</span></div>
+                    <p id="verifyBoxText">保留的前缀会在一次目标模型前向中并行验证。</p>
+                  </article>
+                </div>
+              </div>
+              <div class="cycle-caption">
+                <p id="cycleCaption">目标模型先生成锚点 D。DSpark 不替代目标模型，而是从这个锚点出发提出下一段候选。</p>
+                <div class="cycle-actions">
+                  <button id="cyclePrev" class="small-btn ghost" type="button" disabled>上一步</button>
+                  <button id="cycleNext" class="small-btn mint" type="button">下一步</button>
+                  <button id="cycleAuto" class="small-btn" type="button">自动播放</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="scheduler" class="section" aria-labelledby="scheduler-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">05 · Confidence-scheduled verification</span>
+            <h2 id="scheduler-title">第二项核心：不是草稿越长越好，而是要验证“最值钱”的前缀。</h2>
+          </div>
+          <p>代码通常比开放式聊天更容易预测；低负载时多验几个 token 几乎免费，高负载时每个低置信度 token 都会挤占宝贵批量容量。DSpark 将两者放进同一个调度目标。</p>
+        </div>
+
+        <div class="lab-shell">
+          <div class="lab-top">
+            <div class="lab-title"><span class="lab-dot"></span>交互实验：拖动系统负载</div>
+            <span class="lab-note">教学模拟：保留论文的调度逻辑，硬件曲线为可视化合成数据</span>
+          </div>
+          <div class="scheduler-layout">
+            <aside class="scheduler-controls">
+              <h3>当前服务状态</h3>
+              <p>同一批里有代码、数学、聊天三个请求。调度器比较所有“再多验证一个 token”的预期收益。</p>
+              <div class="control-block">
+                <div class="control-label"><label for="loadSlider">系统负载</label><output id="loadValue" for="loadSlider">45%</output></div>
+                <input id="loadSlider" type="range" min="0" max="100" value="45" step="1" />
+                <div class="load-words"><span>空闲</span><span>繁忙</span></div>
+              </div>
+              <div class="control-block">
+                <div class="control-label"><span>一键场景</span></div>
+                <div class="preset-row">
+                  <button class="seg-btn load-preset" data-load="10" type="button">低负载</button>
+                  <button class="seg-btn load-preset active" data-load="45" type="button">日常</button>
+                  <button class="seg-btn load-preset" data-load="90" type="button">高并发</button>
+                </div>
+              </div>
+              <button id="jitterConfidence" class="small-btn ghost" type="button">换一批相似请求</button>
+              <div class="scheduler-summary">
+                <div class="summary-stat"><span>候选中被验证</span><strong id="selectedCount">—</strong></div>
+                <div class="summary-stat"><span>验证批量 B</span><strong id="batchSize">—</strong></div>
+                <div class="summary-stat"><span>预期产出 τ</span><strong id="expectedAccepts">—</strong></div>
+                <div class="summary-stat"><span>吞吐目标 Θ</span><strong id="throughputScore">—</strong></div>
+              </div>
+            </aside>
+            <div class="scheduler-main">
+              <div class="scheduler-chart">
+                <svg id="throughputCurve" viewBox="0 0 640 140" role="img" aria-label="验证预算与预期吞吐的关系曲线"></svg>
+                <div class="chart-side"><strong id="optimumLabel">最优点</strong><span>调度器沿“置信度从高到低”的路径加入候选，找到预期吞吐最高的位置。</span></div>
+              </div>
+              <div id="requestList" class="request-list"></div>
+              <div class="scheduler-explainer">
+                <span aria-hidden="true">◎</span>
+                <div><strong id="schedulerSentence">正在计算……</strong><br><span>每个位置的“前缀存活概率”是截至该位置所有条件置信度的连乘；越靠后通常越低，所以全局排序天然保持每个请求的连续前缀。</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="advanced-box"><b>论文中的目标：</b>对请求 <code>r</code> 的位置 <code>j</code>，前缀存活概率 <code>aᵣ,ⱼ = ∏ᵢ≤ⱼ cᵣ,ᵢ</code>。验证批量为 <code>B = Σᵣ(1 + ℓᵣ)</code>，预期接受数为 <code>τ = Σᵣ(1 + Σⱼ≤ℓᵣ aᵣ,ⱼ)</code>，调度器根据预先测得的硬件曲线 <code>SPS(B)</code> 最大化 <code>Θ = τ × SPS(B)</code>。论文还专门处理了“决策不能偷看未来 token”的因果约束，以保持无损性。</div>
+      </div>
+    </section>
+
+    <section id="lossless" class="section dark" aria-labelledby="lossless-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">06 · Why it is lossless</span>
+            <h2 id="lossless-title">“先猜”会不会让模型降智？标准实现下，不会。</h2>
+          </div>
+          <p>草稿模型只负责提案。目标模型用拒绝采样规则验收，并在首次拒绝处纠正；这个规则可以精确恢复目标模型原本的输出分布。DSpark 还要求调度决策不依赖未来候选。</p>
+        </div>
+
+        <div class="lossless-grid">
+          <div class="rule-stack">
+            <article class="rule"><span class="rule-num">1</span><div><h3>草稿没有最终决定权</h3><p>它只是便宜地提出候选序列，猜错不会直接进入最终输出。</p></div></article>
+            <article class="rule"><span class="rule-num">2</span><div><h3>目标模型逐位置验收</h3><p>接受最长的连续前缀；一旦某个位置拒绝，后面的候选全部作废。</p></div></article>
+            <article class="rule"><span class="rule-num">3</span><div><h3>拒绝处按残差分布纠正</h3><p>正确的接受率和纠正分布保证最终采样结果与单独运行目标模型一致。</p></div></article>
+          </div>
+
+          <div class="distribution-lab">
+            <span class="kicker">小实验 · 单 token 拒绝采样</span>
+            <h3>模拟 5,000 次，结果会贴近目标分布</h3>
+            <p>这是投机解码验收规则的最小化示例：草稿分布明显偏了，但“接受 + 残差纠正”后的频率仍接近目标分布。</p>
+            <div id="distGrid" class="dist-grid" aria-live="polite">
+              <span class="head">token</span><span class="head">目标分布</span><span class="head">模拟结果</span>
+            </div>
+            <div class="dist-actions">
+              <button id="runDistribution" class="small-btn mint" type="button">模拟 5,000 次</button>
+              <button id="resetDistribution" class="small-btn ghost" type="button">重置</button>
+              <span id="distError" class="dist-error">尚未模拟</span>
+            </div>
+            <div class="advanced-box"><b>单 token 规则：</b>先从草稿分布 <code>q(x)</code> 采样，以 <code>min(1, p(x)/q(x))</code> 的概率接受；若拒绝，则从归一化后的 <code>max(0, p(x)-q(x))</code> 采样。这个组合恰好产生目标分布 <code>p(x)</code>。多 token 版本按连续前缀执行。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="results" class="section alt" aria-labelledby="results-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">07 · What the paper reports</span>
+            <h2 id="results-title">效果主要来自：每一轮能安全接受更多 token，同时不把验证算力浪费在低概率尾部。</h2>
+          </div>
+          <p>离线实验把调度器关闭，只比较草稿质量；线上实验则在 DeepSeek-V4 服务系统的真实流量与特定引擎配置下比较吞吐与用户侧生成速度。</p>
+        </div>
+
+        <div class="results-layout">
+          <section class="benchmark-panel" aria-labelledby="bench-title">
+            <div class="panel-head">
+              <h3 id="bench-title">平均每轮接受 token 数 τ</h3>
+              <div class="bench-controls">
+                <select id="modelSelect" aria-label="选择目标模型">
+                  <option>Qwen3-4B</option><option>Qwen3-8B</option><option>Qwen3-14B</option><option>Gemma4-12B</option>
+                </select>
+                <select id="domainSelect" aria-label="选择任务领域">
+                  <option value="all">全部任务</option><option value="math">数学</option><option value="code">代码</option><option value="chat">对话</option>
+                </select>
+              </div>
+            </div>
+            <div id="barChart" class="bar-chart"></div>
+            <div id="benchCallout" class="bench-callout"></div>
+          </section>
+
+          <aside class="production-panel" aria-labelledby="prod-title">
+            <div class="panel-head"><h3 id="prod-title">线上：匹配吞吐时的单用户速度提升</h3></div>
+            <div class="range-card">
+              <h4>DeepSeek-V4-Flash <span>+60% ～ +85%</span></h4>
+              <div class="range-track"><div class="range-fill" style="--left:60%; --width:25%"></div></div>
+              <div class="range-scale"><span>0%</span><span>50%</span><span>100%</span></div>
+              <p>论文在测量的生产流量与引擎配置下，对比既有 MTP-1 基线。</p>
+            </div>
+            <div class="range-card">
+              <h4>DeepSeek-V4-Pro <span>+57% ～ +78%</span></h4>
+              <div class="range-track"><div class="range-fill" style="--left:57%; --width:21%"></div></div>
+              <div class="range-scale"><span>0%</span><span>50%</span><span>100%</span></div>
+              <p>在更严格的交互速度要求下，调度器还能避免吞吐突然跌落。</p>
+            </div>
+            <div class="caveat">这些百分比不是对所有模型、GPU、并发与工作负载的通用承诺；它们是论文报告的特定生产系统结果。</div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="summary-title">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <span class="kicker">08 · Mental model</span>
+            <h2 id="summary-title">最后，用四句话记住 DSpark。</h2>
+          </div>
+          <p>理解下面四点，就已经抓住了这项工作的主干；公式、训练损失与生产工程细节可以以后再补。</p>
+        </div>
+        <div class="summary-grid">
+          <div class="takeaway-list">
+            <article class="takeaway"><b>01</b><div><h3>它是推理加速器，不是新基础模型</h3><p>目标模型不变，旁边增加一个专门训练的草稿与调度模块。</p></div></article>
+            <article class="takeaway"><b>02</b><div><h3>大块并行预测负责“看得广”</h3><p>并行主干一次产生多个位置的基础预测，避免草稿本身逐 token 变慢。</p></div></article>
+            <article class="takeaway"><b>03</b><div><h3>轻量顺序头负责“接得顺”</h3><p>它利用已采样的前缀修正下一个位置，减少不同表达路径互相拼错。</p></div></article>
+            <article class="takeaway"><b>04</b><div><h3>置信度调度负责“算得值”</h3><p>空闲时多验证，繁忙时砍掉低收益尾部，把目标模型批量容量留给更可能被接受的 token。</p></div></article>
+          </div>
+          <div class="faq">
+            <details open><summary>DSpark 与普通投机解码相比，新在哪里？</summary><p>普通投机解码的基本框架也是“草稿 + 目标验证”。DSpark 的贡献集中在两点：半自回归草稿架构提高长块候选质量；置信度与硬件感知的前缀调度，在高并发服务里动态决定每个请求验证多长。</p></details>
+            <details><summary>为什么只加一个很轻的顺序头就有用？</summary><p>并行主干已经负责大部分语义判断；顺序头不必重新理解全部上下文，只需补上块内的局部转移信息。论文实验中，Markov head 往往已能获得大部分收益，RNN head 的额外提升相对有限。</p></details>
+            <details><summary>是不是草稿越长，速度越快？</summary><p>不是。长草稿带来更多潜在收益，也带来更多验证和固定草稿成本。如果尾部很可能被拒，验证它们会拖累高并发吞吐。因此 DSpark 要动态截断。</p></details>
+            <details><summary>什么场景收益可能较小？</summary><p>草稿与目标分布差异很大、任务极难或开放度极高、草稿固定成本相对过高、硬件无法高效处理可变验证长度时，收益可能下降。论文也指出，低接受率请求的整块草稿成本仍不可回收。</p></details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="sources" class="sources">
+    <div class="sources-inner">
+      <div>
+        <h2>一手资料与口径</h2>
+        <p>页面依据论文、DeepSeek 官方开源仓库与官方模型卡整理。交互模拟用于建立直觉；除明确标注的论文数据外，动画数值不代表真实部署测量。</p>
+      </div>
+      <div class="source-list">
+        <a class="source-link" href="https://arxiv.org/abs/2607.05147" target="_blank" rel="noreferrer"><span class="source-icon">[PDF]</span><span><b>DSpark: Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation</b><small>官方论文，2026-07-06</small></span><span>↗</span></a>
+        <a class="source-link" href="https://github.com/deepseek-ai/DeepSpec" target="_blank" rel="noreferrer"><span class="source-icon">[CODE]</span><span><b>deepseek-ai / DeepSpec</b><small>训练、评估与 DSpark 草稿模型开源代码</small></span><span>↗</span></a>
+        <a class="source-link" href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-DSpark" target="_blank" rel="noreferrer"><span class="source-icon">[CARD]</span><span><b>DeepSeek-V4-Pro-DSpark 模型卡</b><small>官方说明：不是新模型，而是同一 checkpoint 加投机解码模块</small></span><span>↗</span></a>
+      </div>
+    </div>
+    <div class="footer-bottom"><span>面向 Transformer 粗浅理解者的交互讲解</span><span>最后核对：2026-09 · 单文件离线网页</span></div>
+  </footer>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+      // Theme + explanation depth
+      const root = document.documentElement;
+      const themeToggle = $("#themeToggle");
+      const depthToggle = $("#depthToggle");
+      themeToggle.addEventListener("click", () => {
+        const next = root.dataset.theme === "light" ? "dark" : "light";
+        root.dataset.theme = next;
+        themeToggle.textContent = next === "light" ? "◐" : "☀";
+        themeToggle.setAttribute("aria-label", next === "light" ? "切换深色模式" : "切换浅色模式");
+      });
+      depthToggle.addEventListener("click", () => {
+        const advanced = root.dataset.depth !== "advanced";
+        root.dataset.depth = advanced ? "advanced" : "beginner";
+        depthToggle.textContent = advanced ? "进阶模式" : "入门模式";
+        depthToggle.setAttribute("aria-pressed", String(advanced));
+      });
+
+      // Page progress and active nav
+      const progress = $("#pageProgress");
+      const navLinks = $$(".topnav a");
+      const navSections = navLinks.map(a => $(a.getAttribute("href"))).filter(Boolean);
+      const updateScroll = () => {
+        const max = document.documentElement.scrollHeight - innerHeight;
+        progress.style.width = `${max > 0 ? (scrollY / max) * 100 : 0}%`;
+        let activeId = "";
+        navSections.forEach(section => {
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= 130) activeId = section.id;
+        });
+        navLinks.forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#${activeId}`));
+      };
+      addEventListener("scroll", updateScroll, { passive: true });
+      updateScroll();
+
+      // Generation simulator
+      const sentence = ["DSpark", "让", "大模型", "更快", "地", "生成", "同样的", "答案"];
+      const generationPlans = {
+        plain: sentence.map((token, i) => ({ draft: [], output: [token], rejected: 0, status: `目标模型完成第 ${i + 1} 次前向，只产生 1 个 token。` })),
+        spec: [
+          { draft: ["DSpark", "让", "小模型", "快速"], states: ["accept", "accept", "reject", "drop"], output: ["DSpark", "让", "大模型"], rejected: 2, status: "草稿前两项通过；第 3 项被拒，目标模型纠正为“大模型”，后缀作废。" },
+          { draft: ["更快", "地", "生成", "新的"], states: ["accept", "accept", "accept", "reject"], output: ["更快", "地", "生成", "同样的"], rejected: 1, status: "连续接受 3 个候选，并在首次拒绝处补出“同样的”。" },
+          { draft: ["答案"], states: ["accept"], output: ["答案"], rejected: 0, status: "最后一个候选通过。" }
+        ],
+        dspark: [
+          { draft: ["DSpark", "让", "大模型", "更快", "地产生"], states: ["accept", "accept", "accept", "accept", "drop"], output: ["DSpark", "让", "大模型", "更快", "地"], rejected: 1, status: "半自回归草稿给出更连贯的长前缀；调度器提前丢弃低置信度尾项，目标模型一次确认 4 项并给出 bonus token。" },
+          { draft: ["生成", "同样的", "答案", "。"], states: ["accept", "accept", "accept", "drop"], output: ["生成", "同样的", "答案"], rejected: 1, status: "第二轮完成剩余输出；低收益尾部未送入验证。" }
+        ]
+      };
+      let genMode = "plain";
+      let genRunning = false;
+      const simOutput = $("#simOutput");
+      const draftRow = $("#draftRow");
+      const simStatus = $("#simStatus");
+      const roundLabel = $("#roundLabel");
+      const targetCalls = $("#targetCalls");
+      const tokensPerCall = $("#tokensPerCall");
+      const wastedDrafts = $("#wastedDrafts");
+      const draftNode = $("#draftNode");
+      const draftNodeTitle = $("#draftNodeTitle");
+      const draftNodeText = $("#draftNodeText");
+      const draftNodeCost = $("#draftNodeCost");
+      const targetNode = $("#targetNode");
+      const runGeneration = $("#runGeneration");
+      const resetGeneration = $("#resetGeneration");
+
+      function setGenMode(mode) {
+        if (genRunning) return;
+        genMode = mode;
+        $$(".gen-mode").forEach(btn => btn.classList.toggle("active", btn.dataset.mode === mode));
+        draftNode.classList.toggle("hidden", mode === "plain");
+        if (mode === "spec") {
+          draftNodeTitle.textContent = "顺序草稿模型";
+          draftNodeText.textContent = "逐 token 提出候选，前后连贯，但草稿本身也有串行成本。";
+          draftNodeCost.textContent = "先猜短块";
+        } else if (mode === "dspark") {
+          draftNodeTitle.textContent = "DSpark 草稿器";
+          draftNodeText.textContent = "并行主干先算整块，轻量顺序头补依赖，置信度调度器截断尾部。";
+          draftNodeCost.textContent = "长块 + 调度";
+        }
+        resetGenUI();
+      }
+      function resetGenUI() {
+        simOutput.innerHTML = "";
+        draftRow.innerHTML = "";
+        simStatus.textContent = "点击“播放一遍”，观察目标模型轮次。";
+        roundLabel.textContent = "等待开始";
+        targetCalls.textContent = "0";
+        tokensPerCall.textContent = "0.0";
+        wastedDrafts.textContent = "0";
+        runGeneration.disabled = false;
+      }
+      function renderDraft(plan) {
+        draftRow.innerHTML = "";
+        (plan.draft || []).forEach((token, i) => {
+          const el = document.createElement("span");
+          el.className = `draft-token ${(plan.states && plan.states[i]) || ""}`;
+          el.textContent = token;
+          draftRow.appendChild(el);
+        });
+        if (!plan.draft || plan.draft.length === 0) {
+          const el = document.createElement("span");
+          el.className = "draft-token bonus";
+          el.textContent = "无草稿：直接运行目标模型";
+          draftRow.appendChild(el);
+        }
+      }
+      async function runGen() {
+        if (genRunning) return;
+        genRunning = true;
+        runGeneration.disabled = true;
+        simOutput.innerHTML = "";
+        draftRow.innerHTML = "";
+        let calls = 0, outCount = 0, wasted = 0;
+        const plans = generationPlans[genMode];
+        for (let i = 0; i < plans.length; i++) {
+          const plan = plans[i];
+          roundLabel.textContent = `第 ${i + 1} / ${plans.length} 轮`;
+          if (genMode !== "plain") {
+            draftNode.classList.add("pulse");
+            renderDraft({ draft: plan.draft, states: plan.draft.map(() => "") });
+            simStatus.textContent = genMode === "dspark" ? "DSpark 正在并行起草，并用轻量顺序头采样……" : "草稿模型正在顺序提出候选……";
+            await sleep(620);
+            draftNode.classList.remove("pulse");
+          } else {
+            renderDraft(plan);
+          }
+          targetNode.classList.add("pulse");
+          simStatus.textContent = "目标模型正在一次性验证本轮候选……";
+          await sleep(520);
+          targetNode.classList.remove("pulse");
+          renderDraft(plan);
+          for (const token of plan.output) {
+            const el = document.createElement("span");
+            el.className = "output-token";
+            el.textContent = token;
+            simOutput.appendChild(el);
+            outCount++;
+            await sleep(genMode === "plain" ? 120 : 80);
+          }
+          calls++;
+          wasted += plan.rejected || 0;
+          targetCalls.textContent = String(calls);
+          tokensPerCall.textContent = (outCount / calls).toFixed(1);
+          wastedDrafts.textContent = String(wasted);
+          simStatus.textContent = plan.status;
+          await sleep(700);
+        }
+        roundLabel.textContent = "完成";
+        simStatus.textContent += " 这是概念动画，真实轮次和加速比取决于具体请求与系统。";
+        genRunning = false;
+        runGeneration.disabled = false;
+      }
+      $$(".gen-mode").forEach(btn => btn.addEventListener("click", () => setGenMode(btn.dataset.mode)));
+      runGeneration.addEventListener("click", runGen);
+      resetGeneration.addEventListener("click", () => { if (!genRunning) resetGenUI(); });
+
+      // Phrase collision lab
+      let phraseMode = "parallel";
+      let firstToken = "不";
+      const parallelMode = $("#parallelMode");
+      const semiMode = $("#semiMode");
+      const politeBar = $("#politeBar");
+      const problemBar = $("#problemBar");
+      const politeValue = $("#politeValue");
+      const problemValue = $("#problemValue");
+      const phraseSpeech = $("#phraseSpeech");
+      const transitionCallout = $("#transitionCallout span:last-child");
+      function phraseProbs() {
+        if (phraseMode === "parallel") return { polite: 52, problem: 48 };
+        return firstToken === "不" ? { polite: 87, problem: 13 } : { polite: 12, problem: 88 };
+      }
+      function renderPhrase(resetSample = true) {
+        const p = phraseProbs();
+        politeBar.style.width = `${p.polite}%`;
+        problemBar.style.width = `${p.problem}%`;
+        politeValue.textContent = `${p.polite}%`;
+        problemValue.textContent = `${p.problem}%`;
+        politeBar.parentElement.parentElement.classList.toggle("corrected", phraseMode === "semi");
+        problemBar.parentElement.parentElement.classList.toggle("corrected", phraseMode === "semi");
+        parallelMode.classList.toggle("active", phraseMode === "parallel");
+        semiMode.classList.toggle("active", phraseMode === "semi");
+        $$(".first-token").forEach(btn => btn.classList.toggle("active", btn.dataset.token === firstToken));
+        if (resetSample) phraseSpeech.textContent = `助手：${firstToken} …`;
+        transitionCallout.textContent = phraseMode === "parallel"
+          ? "纯并行时，第 2 个位置只看到原始上下文，不知道第 1 个位置实际选了什么。"
+          : `顺序头看到第 1 个 token 是“${firstToken}”，于是给匹配的后继词增加转移偏置。`;
+      }
+      parallelMode.addEventListener("click", () => { phraseMode = "parallel"; renderPhrase(); });
+      semiMode.addEventListener("click", () => { phraseMode = "semi"; renderPhrase(); });
+      $$(".first-token").forEach(btn => btn.addEventListener("click", () => { firstToken = btn.dataset.token; renderPhrase(); }));
+      $("#samplePhrase").addEventListener("click", () => {
+        const p = phraseProbs();
+        const second = Math.random() * 100 < p.polite ? "客气" : "问题";
+        const coherent = (firstToken === "不" && second === "客气") || (firstToken === "没" && second === "问题");
+        phraseSpeech.textContent = `助手：${firstToken}${second}！ ${coherent ? "✓ 连贯" : "⚠ 路径串台"}`;
+      });
+      renderPhrase();
+
+      // Cycle stepper
+      const cycleCaptions = [
+        "目标模型先生成锚点 D。DSpark 不替代目标模型，而是从这个锚点出发提出下一段候选。",
+        "较重的并行主干只跑一次，就为 E、F、G、H 四个位置同时算出隐藏状态与基础 logits。",
+        "轻量顺序头从左到右采样：后一个位置能看到前面实际选中的 token，因此候选更连贯；置信度头同时估计每一步被目标模型接受的概率。",
+        "硬件感知调度器估计前缀存活概率与批量成本，保留 E、F、G，丢弃低置信度 H。",
+        "目标模型一次并行验证 D+E+F+G。E、F 通过，G 首次被拒；从这里起后缀都不能直接使用。",
+        "目标模型在拒绝处生成纠正 token G*。当前轮输出 E、F、G*，G* 又会成为下一轮锚点。"
+      ];
+      let cycleStep = 0;
+      let cycleTimer = null;
+      const cycleStepBtns = $$(".cycle-step");
+      const targetStartBox = $("#targetStartBox");
+      const draftBox = $("#draftBox");
+      const verifyBox = $("#verifyBox");
+      const draftTokens = $$("#draftCluster .flow-token");
+      const verifyTokens = $$("#verifyCluster .flow-token");
+      const verifyBoxText = $("#verifyBoxText");
+      const cycleCaption = $("#cycleCaption");
+      const cyclePrev = $("#cyclePrev");
+      const cycleNext = $("#cycleNext");
+      const cycleAuto = $("#cycleAuto");
+      function renderCycle() {
+        cycleStepBtns.forEach((btn, i) => btn.classList.toggle("active", i === cycleStep));
+        targetStartBox.className = `cycle-box ${cycleStep === 0 ? "active" : "done"}`;
+        draftBox.className = `cycle-box ${cycleStep >= 1 && cycleStep <= 3 ? "active" : cycleStep > 3 ? "done" : ""}`;
+        verifyBox.className = `cycle-box ${cycleStep >= 4 ? "active" : ""}`;
+        draftTokens.forEach((tok, i) => {
+          tok.className = "flow-token new";
+          if (cycleStep >= 2) tok.classList.add("keep");
+          if (cycleStep >= 3 && i === 3) tok.className = "flow-token drop";
+        });
+        verifyTokens.forEach((tok, i) => {
+          tok.className = "flow-token";
+          if (cycleStep >= 4 && i > 0 && i < 3) tok.classList.add("keep");
+          if (cycleStep >= 4 && i === 3) tok.classList.add("reject");
+          if (cycleStep >= 5 && i === 3) { tok.className = "flow-token correct"; tok.textContent = "G*"; }
+          else tok.textContent = ["D", "E", "F", "G"][i];
+        });
+        verifyBoxText.textContent = cycleStep < 4 ? "保留的前缀会在一次目标模型前向中并行验证。" : cycleStep === 4 ? "E、F 接受；G 被拒。后续候选不能越过首次拒绝。" : "目标模型补出 G*，随后进入下一轮。";
+        cycleCaption.textContent = cycleCaptions[cycleStep];
+        cyclePrev.disabled = cycleStep === 0;
+        cycleNext.disabled = cycleStep === 5;
+        cycleNext.textContent = cycleStep === 5 ? "已完成" : "下一步";
+      }
+      function setCycleStep(step) { cycleStep = clamp(step, 0, 5); renderCycle(); }
+      cycleStepBtns.forEach(btn => btn.addEventListener("click", () => { stopCycleAuto(); setCycleStep(Number(btn.dataset.step)); }));
+      cyclePrev.addEventListener("click", () => { stopCycleAuto(); setCycleStep(cycleStep - 1); });
+      cycleNext.addEventListener("click", () => { stopCycleAuto(); setCycleStep(cycleStep + 1); });
+      function stopCycleAuto() {
+        if (cycleTimer) clearInterval(cycleTimer);
+        cycleTimer = null;
+        cycleAuto.textContent = "自动播放";
+      }
+      cycleAuto.addEventListener("click", () => {
+        if (cycleTimer) { stopCycleAuto(); return; }
+        if (cycleStep === 5) setCycleStep(0);
+        cycleAuto.textContent = "暂停";
+        cycleTimer = setInterval(() => {
+          if (cycleStep >= 5) { stopCycleAuto(); return; }
+          setCycleStep(cycleStep + 1);
+        }, 1600);
+      });
+      renderCycle();
+
+      // Scheduler lab
+      const baseRequests = [
+        { name: "代码", hint: "结构强、可预测", icon: "</>", conf: [0.96, 0.93, 0.91, 0.86, 0.82, 0.77] },
+        { name: "数学", hint: "中高置信度", icon: "∑", conf: [0.94, 0.91, 0.87, 0.80, 0.71, 0.64] },
+        { name: "对话", hint: "开放度较高", icon: "…", conf: [0.90, 0.80, 0.69, 0.56, 0.43, 0.31] }
+      ];
+      let requestNoise = [0,0,0];
+      const loadSlider = $("#loadSlider");
+      const loadValue = $("#loadValue");
+      const requestList = $("#requestList");
+      const selectedCount = $("#selectedCount");
+      const batchSize = $("#batchSize");
+      const expectedAccepts = $("#expectedAccepts");
+      const throughputScore = $("#throughputScore");
+      const throughputCurve = $("#throughputCurve");
+      const optimumLabel = $("#optimumLabel");
+      const schedulerSentence = $("#schedulerSentence");
+
+      function schedulerData() {
+        const load = Number(loadSlider.value);
+        const requests = baseRequests.map((r, ri) => ({
+          ...r,
+          conf: r.conf.map((c, j) => clamp(c + requestNoise[ri] * (1 - j * .06), .08, .99))
+        }));
+        const candidates = [];
+        requests.forEach((r, ri) => {
+          let survival = 1;
+          r.survival = r.conf.map((c, j) => {
+            survival *= c;
+            candidates.push({ ri, j, survival });
+            return survival;
+          });
+        });
+        candidates.sort((a,b) => b.survival - a.survival);
+        const R = requests.length;
+        const penalty = 0.005 + 0.24 * Math.pow(load / 100, 1.6);
+        let sum = 0;
+        const curve = [];
+        for (let k = 0; k <= candidates.length; k++) {
+          if (k > 0) sum += candidates[k - 1].survival;
+          const tau = R + sum;
+          const sps = 100 / (1 + penalty * k);
+          curve.push({ k, tau, sps, theta: tau * sps });
+        }
+        let optimum = curve[0];
+        curve.forEach(p => { if (p.theta > optimum.theta) optimum = p; });
+        const selected = new Set(candidates.slice(0, optimum.k).map(c => `${c.ri}-${c.j}`));
+        const ranks = new Map(candidates.map((c, i) => [`${c.ri}-${c.j}`, i + 1]));
+        return { load, requests, candidates, curve, optimum, selected, ranks, R };
+      }
+      function renderCurve(data) {
+        const w = 640, h = 140, padX = 32, padY = 18;
+        const values = data.curve.map(p => p.theta);
+        const minY = Math.min(...values) * .92;
+        const maxY = Math.max(...values) * 1.05;
+        const x = k => padX + (k / (data.curve.length - 1)) * (w - padX * 2);
+        const y = v => h - padY - ((v - minY) / (maxY - minY || 1)) * (h - padY * 2);
+        const d = data.curve.map((p, i) => `${i ? "L" : "M"}${x(p.k).toFixed(2)},${y(p.theta).toFixed(2)}`).join(" ");
+        const ox = x(data.optimum.k), oy = y(data.optimum.theta);
+        throughputCurve.innerHTML = `
+          <defs><linearGradient id="curveGradient" x1="0" x2="1"><stop offset="0" stop-color="#7c6cf2"/><stop offset="1" stop-color="#34d399"/></linearGradient></defs>
+          <line x1="${padX}" y1="${h-padY}" x2="${w-padX}" y2="${h-padY}" stroke="currentColor" opacity=".18"/>
+          <path d="${d}" fill="none" stroke="url(#curveGradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="${ox}" y1="${oy}" x2="${ox}" y2="${h-padY}" stroke="#34d399" stroke-dasharray="4 5" opacity=".8"/>
+          <circle cx="${ox}" cy="${oy}" r="7" fill="#34d399" stroke="white" stroke-width="3"/>
+          <text x="${padX}" y="${h-2}" fill="currentColor" opacity=".55" font-size="10">短验证</text>
+          <text x="${w-padX}" y="${h-2}" fill="currentColor" opacity=".55" text-anchor="end" font-size="10">长验证</text>
+          <text x="${ox}" y="${Math.max(12, oy-13)}" fill="currentColor" text-anchor="middle" font-size="11">k=${data.optimum.k}</text>`;
+      }
+      function renderScheduler() {
+        const data = schedulerData();
+        loadValue.textContent = `${data.load}%`;
+        $$(".load-preset").forEach(btn => btn.classList.toggle("active", Number(btn.dataset.load) === data.load));
+        selectedCount.textContent = `${data.optimum.k} / ${data.candidates.length}`;
+        batchSize.textContent = String(data.R + data.optimum.k);
+        expectedAccepts.textContent = data.optimum.tau.toFixed(2);
+        throughputScore.textContent = data.optimum.theta.toFixed(0);
+        optimumLabel.textContent = `最优：验证 ${data.optimum.k} 个候选`;
+        renderCurve(data);
+        requestList.innerHTML = "";
+        const lengths = [];
+        data.requests.forEach((r, ri) => {
+          let length = 0;
+          r.survival.forEach((_, j) => { if (data.selected.has(`${ri}-${j}`)) length = j + 1; });
+          lengths.push(length);
+          const row = document.createElement("div");
+          row.className = "request-row";
+          row.innerHTML = `<div class="request-meta"><strong>${r.icon} ${r.name}</strong><small>${r.hint}<br>保留前缀：${length} / 6</small></div><div class="request-tokens"></div>`;
+          const tokens = $(".request-tokens", row);
+          r.conf.forEach((c, j) => {
+            const key = `${ri}-${j}`;
+            const token = document.createElement("div");
+            token.className = `scheduler-token ${data.selected.has(key) ? "keep" : "drop"}`;
+            token.innerHTML = `<span class="rank">#${data.ranks.get(key)}</span><b>t${j+1}</b><small>c=${c.toFixed(2)}</small><small>a=${r.survival[j].toFixed(2)}</small>`;
+            token.title = `条件置信度 c=${c.toFixed(3)}；前缀存活概率 a=${r.survival[j].toFixed(3)}`;
+            tokens.appendChild(token);
+          });
+          requestList.appendChild(row);
+        });
+        const loadPhrase = data.load < 30 ? "负载较低，额外验证成本小" : data.load > 70 ? "负载很高，低置信度 token 会挤占批量容量" : "负载适中，需要在长前缀与批量成本间折中";
+        schedulerSentence.textContent = `${loadPhrase}：代码 / 数学 / 对话分别保留 ${lengths[0]}、${lengths[1]}、${lengths[2]} 个候选。`;
+      }
+      loadSlider.addEventListener("input", renderScheduler);
+      $$(".load-preset").forEach(btn => btn.addEventListener("click", () => { loadSlider.value = btn.dataset.load; renderScheduler(); }));
+      $("#jitterConfidence").addEventListener("click", () => {
+        requestNoise = requestNoise.map(() => (Math.random() - .5) * .08);
+        renderScheduler();
+      });
+      renderScheduler();
+
+      // Distribution simulation
+      const tokens = ["A", "B", "C"];
+      const targetP = [0.50, 0.30, 0.20];
+      const draftQ = [0.70, 0.20, 0.10];
+      const distGrid = $("#distGrid");
+      const distError = $("#distError");
+      function sampleIndex(probs) {
+        let r = Math.random();
+        for (let i = 0; i < probs.length; i++) { r -= probs[i]; if (r <= 0) return i; }
+        return probs.length - 1;
+      }
+      function simulateOne() {
+        const x = sampleIndex(draftQ);
+        const accept = Math.random() < Math.min(1, targetP[x] / draftQ[x]);
+        if (accept) return x;
+        const residual = targetP.map((p, i) => Math.max(0, p - draftQ[i]));
+        const z = residual.reduce((a,b) => a+b, 0);
+        return sampleIndex(residual.map(v => v / z));
+      }
+      function renderDistribution(observed = null) {
+        distGrid.innerHTML = `<span class="head">token</span><span class="head">目标分布</span><span class="head">模拟结果</span>`;
+        tokens.forEach((token, i) => {
+          const obs = observed ? observed[i] : 0;
+          distGrid.insertAdjacentHTML("beforeend", `
+            <strong>${token}</strong>
+            <div class="dist-track"><div class="dist-fill" style="width:${targetP[i]*100}%"></div><span class="dist-value">${(targetP[i]*100).toFixed(1)}%</span></div>
+            <div class="dist-track"><div class="dist-fill observed" style="width:${obs*100}%"></div><span class="dist-value">${observed ? (obs*100).toFixed(1)+"%" : "—"}</span></div>`);
+        });
+      }
+      $("#runDistribution").addEventListener("click", () => {
+        const n = 5000;
+        const counts = [0,0,0];
+        for (let i = 0; i < n; i++) counts[simulateOne()]++;
+        const observed = counts.map(c => c / n);
+        renderDistribution(observed);
+        const mae = observed.reduce((s, p, i) => s + Math.abs(p - targetP[i]), 0) / tokens.length;
+        distError.textContent = `平均绝对误差 ${(mae*100).toFixed(2)}%`;
+      });
+      $("#resetDistribution").addEventListener("click", () => { renderDistribution(); distError.textContent = "尚未模拟"; });
+      renderDistribution();
+
+      // Benchmark chart
+      const benchData = {
+        "Qwen3-4B": {
+          Eagle3: { all: 3.611, math: 4.560, code: 3.873, chat: 2.400 },
+          DFlash: { all: 4.064, math: 4.800, code: 4.440, chat: 2.953 },
+          DSpark: { all: 4.727, math: 5.567, code: 5.123, chat: 3.490 }
+        },
+        "Qwen3-8B": {
+          Eagle3: { all: 3.798, math: 4.660, code: 4.153, chat: 2.580 },
+          DFlash: { all: 4.067, math: 4.770, code: 4.463, chat: 2.967 },
+          DSpark: { all: 4.813, math: 5.653, code: 5.283, chat: 3.503 }
+        },
+        "Qwen3-14B": {
+          Eagle3: { all: 3.676, math: 4.517, code: 3.987, chat: 2.523 },
+          DFlash: { all: 4.039, math: 4.743, code: 4.453, chat: 2.920 },
+          DSpark: { all: 4.779, math: 5.630, code: 5.237, chat: 3.470 }
+        },
+        "Gemma4-12B": {
+          Eagle3: { all: 4.376, math: 5.387, code: 4.750, chat: 2.990 },
+          DFlash: { all: 4.018, math: 4.903, code: 4.347, chat: 2.803 },
+          DSpark: { all: 4.663, math: 5.650, code: 5.087, chat: 3.253 }
+        }
+      };
+      const modelSelect = $("#modelSelect");
+      const domainSelect = $("#domainSelect");
+      const barChart = $("#barChart");
+      const benchCallout = $("#benchCallout");
+      function renderBench() {
+        const model = modelSelect.value;
+        const domain = domainSelect.value;
+        const data = benchData[model];
+        const max = 6.2;
+        barChart.innerHTML = "";
+        ["Eagle3", "DFlash", "DSpark"].forEach(name => {
+          const value = data[name][domain];
+          const row = document.createElement("div");
+          row.className = "bar-row";
+          row.innerHTML = `<label>${name}</label><div class="bar-track"><div class="bar-fill" style="width:${(value/max)*100}%"></div></div><span class="bar-value">${value.toFixed(2)}</span>`;
+          barChart.appendChild(row);
+        });
+        const vsD = (data.DSpark[domain] / data.DFlash[domain] - 1) * 100;
+        const vsE = (data.DSpark[domain] / data.Eagle3[domain] - 1) * 100;
+        const domainName = { all: "全部任务的宏平均", math: "数学任务平均", code: "代码任务平均", chat: "对话任务平均" }[domain];
+        benchCallout.innerHTML = `<strong>${model} · ${domainName}：</strong>DSpark 相比 DFlash 高 ${vsD.toFixed(1)}%，相比 Eagle3 ${vsE >= 0 ? "高" : "低"} ${Math.abs(vsE).toFixed(1)}%。数值由论文 Table 1 的各任务结果求平均。`;
+      }
+      modelSelect.addEventListener("change", renderBench);
+      domainSelect.addEventListener("change", renderBench);
+      renderBench();
+
+      // Gentle reveal on first view
+      const revealTargets = $$(".section-heading, .trade-card, .takeaway, .lab-shell, .thesis-card");
+      if ("IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        revealTargets.forEach(el => { el.style.opacity = "0"; el.style.transform = "translateY(16px)"; el.style.transition = "opacity .6s ease, transform .6s ease"; });
+        const observer = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.style.opacity = "1";
+              entry.target.style.transform = "none";
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: .12 });
+        revealTargets.forEach(el => observer.observe(el));
+      }
+    })();
+  </script>
+</body>
+</html>
