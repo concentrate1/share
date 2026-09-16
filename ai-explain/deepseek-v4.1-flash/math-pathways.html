@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="沿文字或图像输入探索 DeepSeek V4.1 Flash 的计算通路：展开算子、核对形状与来源，追踪跨层共享、缓存恢复和生成循环。"><title>DeepSeek V4.1 Flash · 数学通路与三维分层</title><link rel="stylesheet" href="assets/styles/math-pathways-01-before-52e80cc94c27.css"><link rel="stylesheet" href="assets/styles/shared-core-43cf2479a36a.css"></head>
+<body class="mp-page">
+<a class="mp-skip" href="#mp-controls">跳到计算图控件</a>
+<header class="mp-header"><a class="mp-brand" href="guide.html">DEEPSEEK <span>V4.1 FLASH</span></a><nav><a id="mp-tutorial-link" href="guide.html">回到综合教程 ↗</a><a href="#mp-coverage">覆盖与来源</a></nav></header>
+<main>
+<div class="mp-heading"><div><p class="mp-eyebrow">沿输入到输出理解模型</p><h1>从输入，走到下一个 token</h1><p>点击自动播放，走完输入、40 层更新和输出追加；也可以展开模块，查看里面的具体运算。</p></div><div class="mp-count" id="mp-count"></div></div>
+<section class="mp-workbench" aria-label="模型计算流程">
+<div class="mp-toolbar" id="mp-controls">
+
+<label>运行情景<select id="mp-scenario"><option value="text">文字 · 首次读入</option><option value="image">图像 · 汇入主干</option><option value="decode">继续生成</option><option value="recovery">工具返回 · 缓存恢复</option><option value="dspark">DSpark 草稿支路</option><option value="training">训练 · 信号与梯度</option></select></label>
+<details class="mp-advanced" id="mp-advanced"><summary>按层或算子查找</summary><div class="mp-advanced-fields"><label>主干层<select id="mp-layer"></select></label>
+<label class="mp-search-label">搜索算子<input id="mp-search" type="search" placeholder="例如 图片、RoPE、门控"></label>
+<label>对象<select id="mp-filter"><option value="all">全部对象</option><option value="cache">缓存 / 索引</option><option value="weight">权重 / 参数</option><option value="activation">激活 / 向量</option><option value="training">训练信号</option></select></label></div></details>
+</div>
+<div class="mp-context" id="mp-context" aria-live="polite"></div>
+<div class="mp-position-reference" id="mp-position-reference"></div>
+<div class="mp-layout">
+<aside class="mp-tree"><div class="mp-tree-head"><strong>模块与步骤</strong><span id="mp-result-count"></span></div><div id="mp-tree" role="group" aria-label="模块与步骤按钮"></div></aside>
+<div class="mp-center"><div class="mp-view-controls"><div role="group" aria-label="计算图表示方式"><button type="button" data-mp-layout="space" aria-pressed="true">三维分层</button><button type="button" data-mp-layout="diagram" aria-pressed="false">二维关系图</button><button type="button" id="mp-camera-reset">恢复视角</button></div><span id="mp-view-help"></span></div><div class="mp-breadcrumb"><button id="mp-up" type="button">← 上一级</button><span id="mp-breadcrumb"></span><button id="mp-home" type="button">回到全图</button><button id="mp-space" type="button" hidden>查看三维向量 ↗</button></div><p class="mp-pan-hint">左右滑动查看完整流程；选中的步骤会自动居中。</p><div class="mp-viewport"><canvas id="mp-canvas" tabindex="0" aria-label="计算依赖图，方向键选择节点，Enter 展开，Esc 返回。使用左侧清单也可操作。"></canvas><span class="mp-axis-note">箭头表示依赖方向；模块里可以继续展开具体算子。</span></div><div class="mp-playbar"><div class="mp-transport" role="group" aria-label="播放控制"><button id="mp-replay" type="button" class="mp-round" aria-label="重播" data-mp-hint="重播"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-mp-icon="replay"><path d="M19 12a7 7 0 1 1-2.6-5.4"/><path d="M19.4 4.6v4.2h-4.2"/></svg></button><button id="mp-prev" type="button" class="mp-round" aria-label="上一步" data-mp-hint="上一步"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-mp-icon="prev"><path d="M5.5 5.5v13"/><path d="M19.5 6.4 8.5 12l11 5.6V6.4Z"/></svg></button><button id="mp-play" type="button" class="mp-round mp-round-primary" aria-label="自动播放全流程" data-mp-hint="自动播放全流程" data-mp-playing="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-mp-icon="play"><path d="M6.5 5.2 18.8 12 6.5 18.8V5.2Z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-mp-icon="pause"><path d="M8.4 5.4v13.2"/><path d="M15.6 5.4v13.2"/></svg></button><button id="mp-next" type="button" class="mp-round" aria-label="下一步，按住可快进" data-mp-hint="下一步 · 按住快进"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-mp-icon="next"><path d="M18.5 5.5v13"/><path d="M4.5 6.4 15.5 12l-11 5.6V6.4Z"/></svg></button></div><button type="button" id="mp-speed-cycle" class="mp-round mp-round-text" aria-label="播放速度 1×，点击切换" data-mp-hint="播放速度 · 点击切换">1×</button><select id="mp-speed" class="mp-speed-value" aria-label="自动播放节奏" tabindex="-1" aria-hidden="true"><option value="0.0929">7×</option><option value="0.2167">3×</option><option value="0.65" selected>1×</option></select><span id="mp-progress" aria-live="polite"></span></div><details class="mp-reading-note"><summary>教学示意 · 怎样读这张图？</summary><p>圆点标出连线起点，箭头指向接收方。连线表示计算依赖，层号标出计算位置和共享来源；输入条帮助对照序列位置。公式中的算例用于解释运算，数值不是真实模型的激活记录。</p><p>形状里，B 是批次中的序列数，S 是序列长度，N 是图像 patch 数，d 表示当前向量的分量数；[B,S,5120] 表示每个序列位置有一条 5,120 维向量。</p><p>编号里，主干层记作 L0–L39，位置 t 从 0 开始，教程写“第 1 个位置”时对应 t=0；头、路、专家各自编号，都不等于向量维度。</p></details><p class="mp-legend"><span>实线 → 数据</span><span>虚线 ⇢ 共享引用</span><span>点线 ⋯ 条件分支</span><span>紫色 ← 梯度</span></p></div>
+<aside id="mp-detail" class="mp-detail" aria-live="polite"></aside>
+</div>
+</section>
+<section id="mp-coverage" class="mp-coverage"><div><p class="mp-eyebrow">资料与进一步阅读</p><h2>各模块讲什么？到哪里深入阅读？</h2><p>这是一张公开资料所支持的算子级通路图。教学数值、发布配置和报告中的符号化机制分别标明；展开节点可查看具体限制。</p></div><div id="mp-coverage-body"></div></section>
+<footer class="mp-footer"><a href="guide.html">继续阅读综合教程 →</a></footer>
+</main><dialog id="mp-spatial-dialog" class="mp-spatial-dialog" aria-labelledby="mp-spatial-title"><header><h2 id="mp-spatial-title">空间实验</h2><button id="mp-spatial-close" type="button">返回计算图 ×</button></header><p id="mp-spatial-note"></p><section data-spatial-slot="attention" hidden><section id="attention-3d" class="a3d story-section" aria-labelledby="a3d-title">
+  <p class="a3d-kicker">空间实验 · 单头注意力</p>
+  <h3 id="a3d-title">改变查询 Q，看哪一个位置得到更多注意力</h3>
+  <p class="a3d-intro">图中最粗的一支箭头是位置 3 的查询 <b>q</b>，另外三支是位置 1–3 的键 <b>k₁、k₂、k₃</b>；每支箭头的颜色见图下图例。先让 q 朝向一支 k，再看右侧哪条权重变大。</p>
+  <div class="a3d-modebar">
+    <div class="a3d-tabs" role="tablist" aria-label="三维注意力的两个计算空间">
+      <button id="a3d-tab-match" type="button" role="tab" aria-controls="a3d-panel" aria-selected="true" data-a3d-mode="match">① Q / K 决定读多少</button>
+      <button id="a3d-tab-sum" type="button" role="tab" aria-controls="a3d-panel" aria-selected="false" tabindex="-1" data-a3d-mode="sum">② V 提供读取内容</button>
+    </div>
+    <span class="a3d-flow">同一组权重连接两个空间</span>
+    <div class="a3d-sum-controls" data-a3d-sum-controls hidden><button type="button" class="primary" data-a3d-play>播放向量相加</button><button type="button" data-a3d-step>下一步</button><button type="button" data-a3d-replay>重置相加</button></div>
+  </div>
+  <div id="a3d-panel" role="tabpanel" aria-labelledby="a3d-tab-match">
+    <section class="a3d-query-editor" data-a3d-query-controls aria-labelledby="a3d-query-editor-title">
+      <div class="a3d-query-editor-head">
+        <div><b id="a3d-query-editor-title">改变蓝色查询 Q</b><span>下面三项只改 q 的方向或长度</span></div>
+        <div class="a3d-presets" role="group" aria-label="让查询 Q 精确朝向某个键向量"><span>方向预设</span><button type="button" data-a3d-preset="0">朝向 K₁</button><button type="button" data-a3d-preset="1">让 Q 朝向 K₂</button><button type="button" data-a3d-preset="2">朝向 K₃</button></div>
+      </div>
+      <div class="a3d-controls">
+        <label for="a3d-azimuth">查询 Q 的水平方向 <output data-a3d-azimuth-value>25°</output><input id="a3d-azimuth" data-a3d-input="azimuth" type="range" min="-180" max="180" step="0.1" value="25" aria-describedby="a3d-query-observation"></label>
+        <label for="a3d-elevation">查询 Q 的上下方向 <output data-a3d-elevation-value>20°</output><input id="a3d-elevation" data-a3d-input="elevation" type="range" min="-70" max="70" step="0.1" value="20" aria-describedby="a3d-query-observation"></label>
+        <label for="a3d-length">查询 Q 的长度 |q| <output data-a3d-length-value>1.80</output><input id="a3d-length" data-a3d-input="length" type="range" min="0" max="3" step="0.05" value="1.8" aria-describedby="a3d-query-observation"></label>
+      </div>
+      <div class="a3d-observation" id="a3d-query-observation" role="status" aria-live="polite"><span>观察哪条权重变大</span><b data-a3d-insight>选择一个方向预设，比较右侧三条权重。</b></div>
+    </section>
+    <div class="a3d-workspace">
+      <div class="a3d-scene">
+        <div class="a3d-scene-heading"><div><strong data-a3d-space>匹配空间 · q 与 k</strong><span>观察视角 · 不改变 Q/K/V 数值</span></div><button type="button" data-a3d-camera-reset>恢复观察视角</button></div>
+        <canvas data-a3d-canvas tabindex="0" role="img" aria-label="可旋转的三维向量图。拖动或按方向键只旋转观察视角，Home 键恢复视角。向量分量见相邻数值表。">向量坐标、匹配分数、权重和输出均列在旁边的数值区。</canvas>
+        <div class="a3d-scene-bottom"><span data-a3d-camera-status>拖动画布 / 方向键：只改变观察视角</span><span class="a3d-legend" data-a3d-scene-legend></span><span data-a3d-progress role="status" aria-live="polite" hidden></span></div>
+      </div>
+      <div class="a3d-readout">
+        <p class="a3d-formula" data-a3d-formula>分数 sᵢ = q · kᵢ / √3<br>权重 α = softmax(s)</p>
+        <p class="a3d-query"><span>当前完整查询向量 q</span><strong data-a3d-query></strong></p>
+        <div class="a3d-table" role="table" aria-label="位置、向量、匹配分数与注意力权重"><div class="a3d-table-head" role="row"><span role="columnheader" data-a3d-vector-heading>键向量 kᵢ</span><span role="columnheader">分数 sᵢ</span><span role="columnheader">权重 α</span></div><div data-a3d-rows></div></div>
+        <div class="a3d-output"><span>V 空间的汇总向量 z</span><strong data-a3d-output></strong><small>z = α₁v₁ + α₂v₂ + α₃v₃</small></div>
+      </div>
+    </div>
+    <div class="a3d-bottom-row"><p>每支箭头表示一条完整三维教学向量；旋转画布只帮助观察，不会改动计算。</p><button type="button" data-a3d-reset>重置整个实验</button></div>
+  </div>
+  <details class="a3d-details"><summary>三维图、数值与公式怎样对应？</summary>
+    <p>本实验追踪位置 3 的一次标准注意力计算，位置 1「小猫」、位置 2「正在」、位置 3「睡觉」均可见。它使用固定的三维教学 k、v，并独立调整 q；这些数字用于说明几何与公式，不是模型内部 latent 的前三项。</p>
+    <p>一个箭头对应一个完整的三维向量；[a, b, c] 列出这个箭头的三个分量。方向预设根据目标 k 的三个分量计算 q 的方位角和仰角，因此 q 会与该 k 平行；q 的长度仍由“查询 Q 的长度”控制。</p>
+    <p>汇总视图中，淡色虚线是原始 v，实线是 αᵢvᵢ。把加权向量首尾相接只改变画在何处，三个分量保持不变；原点到链条终点的深色箭头就是 z。</p>
+    <p>标准公式依据：<a href="https://arxiv.org/html/1706.03762v7#S3.SS2" target="_blank" rel="noopener noreferrer">Attention Is All You Need · §3.2</a>。</p>
+  </details>
+  <aside class="a3d-bridge" aria-labelledby="a3d-bridge-title">
+    <p class="a3d-bridge-line" id="a3d-bridge-title"><b>从通用算例到 V4.1：</b>这里完整演示一个头的 Q/K 匹配与 V 汇总。V4.1 的真实路径差在 K/V 的形状上，本章后面的「多个注意力头怎样合成一次输出？」接着看。</p>
+  </aside>
+</section>
+</section><section data-spatial-slot="mhc" hidden><section id="mhc-3d" class="a3d x3d m3d story-section" aria-labelledby="m3d-title">
+ <p class="a3d-kicker">空间实验 · mHC 四路连接</p>
+ <h3 id="m3d-title">四路状态怎样送进子模块，再带着新结果继续向后？</h3>
+ <p class="a3d-intro">同一个 token 同时保留四条完整状态。先把四路组合成一次计算的输入，子模块产生一条新结果；随后四路旧状态彼此混合保留，再分别加入这条新结果。</p>
+ <div class="m3d-commandbar">
+  <div class="a3d-tabs m3d-stage-tabs" role="tablist" aria-label="选择 mHC 计算阶段">
+   <button type="button" role="tab" id="m3d-tab-input" aria-controls="m3d-panel" aria-selected="true" data-m3d-mode="input"><small>阶段 1</small>组合四路输入</button>
+   <button type="button" role="tab" id="m3d-tab-module" aria-controls="m3d-panel" aria-selected="false" tabindex="-1" data-m3d-mode="module"><small>阶段 2</small>得到新结果</button>
+   <button type="button" role="tab" id="m3d-tab-residual" aria-controls="m3d-panel" aria-selected="false" tabindex="-1" data-m3d-mode="residual"><small>阶段 3</small>混合并保留旧状态</button>
+   <button type="button" role="tab" id="m3d-tab-write" aria-controls="m3d-panel" aria-selected="false" tabindex="-1" data-m3d-mode="write"><small>阶段 4</small>加入新结果</button>
+  </div>
+ </div>
+ <div id="m3d-panel" role="tabpanel" aria-labelledby="m3d-tab-input">
+  <div class="a3d-workspace">
+   <div class="a3d-scene">
+    <div class="a3d-scene-heading"><strong data-m3d-scene-title>四个完整向量首尾相加，得到一次计算的输入</strong><div class="m3d-view-controls" role="group" aria-label="三维图缩放与视角"><button type="button" data-m3d-zoom-out aria-label="缩小三维图">−</button><output data-m3d-zoom-value aria-live="polite">100%</output><button type="button" data-m3d-zoom-in aria-label="放大三维图">+</button><button type="button" data-m3d-camera-reset>恢复</button></div></div>
+    <canvas data-m3d-canvas tabindex="0" role="img" aria-label="mHC 四路三维向量教学图。拖动或方向键旋转，按加号或减号缩放，Home 恢复视角与缩放。">完整数值见相邻结果与展开明细。</canvas>
+    <div class="a3d-scene-bottom"><span>拖动 / 方向键旋转 · ＋/－ 缩放 · Home 恢复</span><span data-m3d-legend>淡色箭头是四路 X；实色首尾链是 A₁X₁ 到 A₄X₄；深色 u 是合成结果</span></div>
+   </div>
+   <div class="x3d-readout">
+    <div class="m3d-readout-head">
+     <div class="m3d-stage-heading"><span data-m3d-stage-number>阶段 1 / 4</span><strong data-m3d-stage-question>A 怎样把四路变成一条子模块输入？</strong></div>
+     <div class="m3d-route-control"><span>跟随哪一路</span><div class="x3d-route-buttons" aria-label="选择追踪的残差路"><button type="button" data-m3d-route="0" aria-label="跟随路 1" aria-pressed="true"><i aria-hidden="true"></i>1</button><button type="button" data-m3d-route="1" aria-label="跟随路 2" aria-pressed="false"><i aria-hidden="true"></i>2</button><button type="button" data-m3d-route="2" aria-label="跟随路 3" aria-pressed="false"><i aria-hidden="true"></i>3</button><button type="button" data-m3d-route="3" aria-label="跟随路 4" aria-pressed="false"><i aria-hidden="true"></i>4</button></div></div>
+    </div>
+    <p class="m3d-formula" data-m3d-formula><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>u</mi><mo>=</mo><msub><mi>A</mi><mtext>前一块</mtext></msub><mi>X</mi><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mn>4</mn></munderover><msub><mi>A</mi><mi>j</mi></msub><msub><mi>X</mi><mi>j</mi></msub></math></p>
+    <div class="m3d-mix-control" data-m3d-mix-control hidden><label for="m3d-mix">B 交换四路旧状态的程度 <output data-m3d-mix-value>100%</output><input id="m3d-mix" type="range" min="0" max="1" step="0.05" value="1" data-m3d-mix aria-describedby="m3d-mix-hint"><small id="m3d-mix-hint"><b>0%</b> 只留自己　·　<b>100%</b> 使用完整教学 B</small></label></div>
+    <div data-m3d-input-info>
+     <p class="m3d-reading-note">用前一个块给出的 A 缩放四条完整向量，再把四项相加。</p>
+     <details class="m3d-number-details"><summary>查看四路输入与贡献</summary><table class="x3d-table m3d-check-table"><thead><tr><th>来源</th><th>完整向量 X<sub>j</sub></th><th>A<sub>j</sub></th><th>贡献 A<sub>j</sub>X<sub>j</sub></th></tr></thead><tbody data-m3d-inputs></tbody></table></details>
+    </div>
+    <div data-m3d-module-info hidden>
+     <p class="m3d-reading-note">子模块 F 接收合成后的 u，交回同宽度的新结果 y。</p>
+     <details class="m3d-number-details"><summary>查看子模块的输入与输出</summary><div class="m3d-module-pair"><span><small>子模块输入 u</small><b data-m3d-module-input></b></span><i aria-hidden="true">F</i><span><small>新计算结果 y</small><b data-m3d-module-output></b></span></div></details>
+    </div>
+    <div data-m3d-residual-info hidden>
+     <p class="m3d-reading-note">用 B 的当前一行混合四条旧状态，得到这一路保留的 R<sub>i</sub>。</p>
+     <details class="m3d-number-details m3d-residual-details"><summary data-m3d-residual-summary>查看路 1 的四项贡献与完整 B</summary><table class="x3d-table m3d-check-table"><thead><tr><th>取自</th><th>B<sub>ij</sub></th><th>完整贡献 B<sub>ij</sub>X<sub>j</sub></th></tr></thead><tbody data-m3d-residual-parts></tbody></table><h4>完整 4 × 4 的 B 矩阵</h4><table class="x3d-table m3d-matrix"><thead><tr><th>B</th><th>取路 1</th><th>取路 2</th><th>取路 3</th><th>取路 4</th><th>行和</th></tr></thead><tbody data-m3d-matrix></tbody><tfoot><tr><th>列和</th><td data-m3d-col="0">1</td><td data-m3d-col="1">1</td><td data-m3d-col="2">1</td><td data-m3d-col="3">1</td><td></td></tr></tfoot></table></details>
+    </div>
+    <div data-m3d-write-info hidden>
+     <p class="m3d-reading-note" data-m3d-write-description>每一路先保留 R<sub>i</sub>，再把同一个 y 按自己的 C<sub>i</sub> 缩放后加入。</p>
+     <details class="m3d-number-details"><summary>查看四路完整更新</summary><table class="x3d-table m3d-check-table"><thead><tr><th>接收路</th><th>保留 R<sub>i</sub></th><th>加入 C<sub>i</sub>y</th><th>更新后 X′<sub>i</sub></th></tr></thead><tbody data-m3d-outputs></tbody></table></details>
+    </div>
+    <div class="a3d-output"><span data-m3d-result-label>合成后的子模块输入 u</span><strong data-m3d-result></strong><small data-m3d-result-detail></small></div>
+    <p class="x3d-caption" data-m3d-status role="status" aria-live="polite"></p>
+   </div>
+  </div>
+ </div>
+ <details class="a3d-details m3d-details"><summary>展开：教学数值、真实维度与系数约束</summary>
+  <p><b>本图是完整三维算例。</b>每个箭头的三个分量都参加缩放与相加；它不是从真实 5,120 维向量截出的前三项。真实模型中 X 的形状是 4 × 5,120，u、y 的形状都是 1 × 5,120，更新后仍是 4 × 5,120。</p>
+  <p><b>本图的 X、A、B、C、y 都是固定教学数值。</b>真实模型则把当前 token 的四路 X 拼成 20,480 个数，用训练得到且推理时固定的投影参数，动态算出本次 A、B、C。A = sigmoid(·) + ε<sub>hc</sub>；C = 2 sigmoid(·)；B 先做行 softmax 并加入 ε<sub>hc</sub>，再进行 20 次 Sinkhorn 行列归一化。</p>
+  <p>主干第一块还没有“前一个块”，公开实现用 <b>[1, 0, 0, 0]</b> 作为起始 A，只取第一路；从后续块开始，才使用前一个块动态算出的 A。本图的平均 A 用来展示四条贡献向量怎样相加。</p>
+  <p>混合程度控件沿 <math xmlns="http://www.w3.org/1998/Math/MathML"><mi>B</mi><mo>(</mo><mi>λ</mi><mo>)</mo><mo>=</mo><mo>(</mo><mn>1</mn><mo>−</mo><mi>λ</mi><mo>)</mo><mi>I</mi><mo>+</mo><mi>λ</mi><msub><mi>B</mi><mtext>教学</mtext></msub></math> 变化。λ = 0 时只保留各路自己；λ = 1 时使用完整教学矩阵。这条路径的行和、列和都保持为 1。A 与 C 不要求和为 1。</p>
+  <p>依据：<a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/resolve/main/DeepSeek_V41_Tech_Report.pdf#page=12" target="_blank" rel="noopener">V4.1 报告 §2.4.1</a>；<a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/inference/model.py#L907" target="_blank" rel="noopener">公开模型实现 Block.hc_mixes</a>；<a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/inference/kernel.py#L406" target="_blank" rel="noopener">公开 hc_split_sinkhorn 内核</a>。<a href="guide.html#single-pass-mhc">回看相邻块怎样传递 A</a>。</p>
+ </details>
+</section>
+</section><section data-spatial-slot="tensor" hidden><section id="tensor-3d" class="a3d x3d t3d story-section" aria-labelledby="t3d-title">
+ <p class="a3d-kicker">空间实验 · 图片怎样变成视觉 token</p>
+ <h3 id="t3d-title">九个图像小块，合成一条让语言主干读取的表示</h3>
+ <p class="a3d-intro">图像进入视觉编码器后，每个图像小块（patch）的位置保存一条 <b>1,024 维特征向量</b>。模型把相邻九个位置合成一组，再用两层学得的变换生成一个 <b>5,120 维视觉 token</b>。下面用一张 <b>84 × 84 像素</b>照片和完整的五维教学数值，逐步看清对象、拼接和来源关系。</p>
+ <div class="a3d-modebar"><div class="a3d-tabs" role="tablist" aria-label="图片到视觉 token 的四个观察步骤">
+  <button type="button" role="tab" id="t3d-tab-vector" aria-controls="t3d-panel" aria-selected="true" data-t3d-mode="vector">① 一块对应一条向量</button>
+  <button type="button" role="tab" id="t3d-tab-slice" aria-controls="t3d-panel" aria-selected="false" tabindex="-1" data-t3d-mode="slice">② 沿分量方向切片</button>
+  <button type="button" role="tab" id="t3d-tab-pack" aria-controls="t3d-panel" aria-selected="false" tabindex="-1" data-t3d-mode="pack">③ 九块按分量打包</button>
+  <button type="button" role="tab" id="t3d-tab-pipeline" aria-controls="t3d-panel" aria-selected="false" tabindex="-1" data-t3d-mode="pipeline">④ 生成视觉 token</button>
+ </div></div>
+ <div id="t3d-panel" role="tabpanel" aria-labelledby="t3d-tab-vector">
+  <div class="x3d-controls t3d-controls">
+   <div class="t3d-location-controls" data-t3d-location-controls>
+    <label>图像行<select data-t3d-row aria-label="选择图像小块所在行"></select></label>
+    <label>图像列<select data-t3d-col aria-label="选择图像小块所在列"></select></label>
+   </div>
+   <label data-t3d-channel-control hidden>观察分量 <output data-t3d-channel-value>1 / 5</output><input type="range" min="1" max="5" step="1" value="1" data-t3d-channel aria-label="选择教学向量的分量"></label>
+   <div class="t3d-play-controls" data-t3d-pack-controls hidden>
+    <button type="button" data-t3d-pack-prev>后退</button><button type="button" class="primary" data-t3d-play>播放拼接</button><button type="button" data-t3d-finish>前进</button><button type="button" data-t3d-reset>重置</button>
+   </div>
+   <div class="t3d-play-controls" data-t3d-pipeline-controls hidden><span data-t3d-pipeline-progress aria-live="polite">视觉 token 流程 · 0 / 5</span>
+    <button type="button" data-t3d-pipeline-prev>上一步</button><button type="button" class="primary" data-t3d-pipeline-next>下一步</button><button type="button" data-t3d-pipeline-reset>重置</button>
+   </div>
+  </div>
+  <div class="a3d-workspace">
+   <div class="t3d-image-panel">
+    <strong data-t3d-image-title>教学输入 · 84 × 84 像素</strong>
+    <div class="t3d-photo"><img data-t3d-photo src="assets/images/image-ec8ff0a6954a5f54.jpg" alt="一只橘白猫的照片，图片上覆盖六行六列的可选网格" width="84" height="84"><div class="t3d-photo-grid" data-t3d-photo-grid role="group" aria-label="图片上的六行六列图像小块"></div></div>
+    <div class="t3d-crop-row"><div class="t3d-crop" data-t3d-crop role="img" aria-label="所选图像小块的放大图"></div><p><b data-t3d-photo-position>第 2 行，第 2 列</b><br><span data-t3d-pixel-range>像素行 15–28，列 15–28</span><br><span>一块 = 14 × 14 像素</span></p></div>
+    <p class="t3d-image-note" data-t3d-photo-hint>照片实际缩为 84 × 84 像素后显示；每框是一块 14 × 14 像素的 patch。</p>
+    <p class="t3d-image-credit">照片：<a href="https://commons.wikimedia.org/wiki/File:Cat03.jpg" target="_blank" rel="noopener">Fir0002/Flagstaffotos</a> · <a href="https://www.gnu.org/licenses/old-licenses/fdl-1.2.html" target="_blank" rel="noopener">GFDL 1.2</a>，已缩放并作局部放大。</p>
+   </div>
+   <div class="a3d-scene" data-t3d-scene><div class="a3d-scene-heading"><strong data-t3d-scene-title>6 × 6 × 5 · 教学特征张量</strong><button type="button" data-t3d-camera-reset>恢复视角</button></div>
+    <canvas data-t3d-canvas tabindex="0" role="img" aria-label="三维图片特征张量。拖动或方向键旋转；点击小格选择其所在向量，也可用上方行列选择器。"></canvas>
+    <div class="a3d-scene-bottom"><span>拖动 / 方向键旋转 · 点击小格选择整条向量</span><span>竖直深度确实表示向量的五个特征分量</span></div>
+   </div>
+   <div class="x3d-readout" data-t3d-readout>
+    <div class="t3d-position"><strong data-t3d-position>第 2 行，第 2 列</strong><span>教学向量 · 5 维</span></div>
+    <p class="t3d-real-dimension">真实对象：每位置一条 <b>1,024 维向量</b><br>教学对象：每位置一条 <b>5 维向量</b></p>
+    <button type="button" class="t3d-dimension-open" data-t3d-dimension-open>展开对照：1,024 维有多长</button>
+    <div class="t3d-vector" data-t3d-vector role="group" aria-label="所选位置的完整五分量教学向量"></div>
+    <div data-t3d-vector-info><p>五个有顺序的数合在一起，才是这个位置的一条向量。选中位置时，五个分量会一起高亮。</p><button type="button" data-t3d-extract aria-pressed="false">拉出这条向量</button><p class="t3d-count">6 × 6 个位置，各有 5 个分量<br><b>教学张量共 180 个数</b></p></div>
+    <div data-t3d-slice-info hidden><p data-t3d-slice-title></p><div class="t3d-slice" data-t3d-slice role="group" aria-label="当前分量的六行六列切片"></div><p>切片中的每格只是一个分量值；沿深度方向收齐五层，才得到一个位置的完整向量。</p></div>
+    <div data-t3d-pack-info tabindex="0" aria-label="九条位置向量按分量打包的结果" hidden>
+     <p class="t3d-group-purpose"><b>目的：</b>收集同一 3 × 3 区域的九条位置向量，并按模型实际次序打包，接着生成一个视觉 token。</p>
+     <p data-t3d-group-title></p><div class="t3d-pack-segments" data-t3d-pack-segments aria-label="九条五维教学向量的来源位置"></div>
+     <p class="t3d-pack-rule"><b>打包次序：</b>先收齐九个位置的分量 1，再收齐分量 2，依次得到五段。</p>
+     <div class="t3d-packed-strip" data-t3d-strip aria-label="按分量优先次序组成的四十五维教学向量"></div>
+     <p class="t3d-pack-total"><span><b>教学结构</b> 9 × 5 = 45 维</span><span><b>真实结构</b> 9 × 1,024 = 9,216 维</span></p>
+    </div>
+   </div>
+   <div class="t3d-pipeline-panel" data-t3d-pipeline-panel tabindex="0" aria-label="从九个图像位置到一个视觉 token 的六阶段流程；左右方向键切换阶段，Home 重置，End 到结果" hidden>
+    <div class="t3d-pipeline-heading"><div><strong>九个位置为什么要合并？</strong><p>6 × 6 个位置按不重叠的 3 × 3 区域归组，最终得到 2 × 2 个视觉 token。点击任一输出格，可反向查看它来自照片中的哪九块。</p></div><span data-t3d-source-label>当前：左上区域</span></div>
+    <div class="t3d-pipeline-flow" data-t3d-pipeline-flow>
+     <div class="t3d-pipeline-node" data-t3d-stage="source"><span>九条编码后特征</span><strong>9 × [1,024]</strong><small>同一 3 × 3 区域</small></div>
+     <i class="t3d-flow-arrow" aria-hidden="true"></i>
+     <div class="t3d-pipeline-node" data-t3d-stage="packed"><span>按特征分量打包</span><strong>[9,216]</strong><small>1,024 段，每段九个位置</small></div>
+     <i class="t3d-flow-arrow" aria-hidden="true"></i>
+     <div class="t3d-mlp" aria-label="两层视觉多层感知机">
+      <p>用两层学得的变换调整内容和长度，这部分叫<b>视觉 MLP</b></p>
+      <div data-t3d-stage="linear1"><span>线性层 1</span><b>9,216 → 5,120</b><small>W₁u + b₁</small></div>
+      <div data-t3d-stage="gelu"><span>GELU</span><b>5,120 → 5,120</b><small>逐分量激活</small></div>
+      <div data-t3d-stage="linear2"><span>线性层 2</span><b>5,120 → 5,120</b><small>W₂g + b₂</small></div>
+      <em>W₁、W₂ 与偏置由训练学得，推理时固定</em>
+     </div>
+     <i class="t3d-flow-arrow" aria-hidden="true"></i>
+     <div class="t3d-token-output" data-t3d-stage="token"><span>供语言主干读取</span><strong>2 × 2 个视觉 token</strong><div class="t3d-token-grid" data-t3d-visual-tokens role="group" aria-label="四个视觉 token；选择一个查看其九块来源"></div><small>每格都是一条 [5,120] 向量</small></div>
+    </div>
+    <div class="t3d-pipeline-result" data-t3d-pipeline-result role="status" aria-live="polite"><span>当前结果</span><p>先观察选中的九块：它们各自保存一条 1,024 维特征向量。</p></div>
+   </div>
+  </div>
+  <p class="x3d-caption" data-t3d-status role="status" aria-live="polite">选择照片中的一块，再拉出它对应的完整教学向量。</p>
+ </div>
+ <details class="a3d-details"><summary>真实尺寸、拼接顺序与来源</summary>
+  <p>照片先按 14 × 14 像素切成图像小块。每块有 14 × 14 × 3 = 588 个 RGB 颜色数值，经可学习的线性投影进入 1,024 维视觉空间，再由视觉编码器结合整张图的信息更新。这里的五维教学向量是为解释张量结构而设的固定数值，不是从照片算出的特征，也不是实际向量的前五项。</p>
+  <p>每个分量段都按从上到下、从左到右的次序收集九个位置：</p><ol class="t3d-order-list" data-t3d-order-list></ol>
+  <p>官方 <code>vision.py</code> 先把视觉网格从 <b>[高, 宽, 特征]</b> 调整为 <b>[特征, 高, 宽]</b>，再用 PyTorch <code>unfold</code> 取 3 × 3 区域。因此 9,216 维输入按<b>特征分量优先</b>排列：第 1 个分量的九个空间位置在前，然后是第 2 个分量的九个位置，直到第 1,024 个分量。上面的 5 × 9 教学打包与这个顺序一致。</p>
+  <p>Aligner 在边缘不足时先补齐，再执行 <b>Linear(9,216→5,120) → GELU → Linear(5,120→5,120)</b>。输出与语言隐藏维度相同，可作为视觉 token 写入输入序列。真实视觉特征会融合其他位置的信息，因此“来自九块”描述的是重排时直接收集的九个位置，并不把特征的感受范围限制在这 42 × 42 像素内。</p>
+  <p>84 × 84 与 6 × 6 是缩小教学输入，不代表模型固定分辨率。尺寸依据：<a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/config.json" target="_blank" rel="noopener">官方配置</a>、<a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/inference/vision.py#L106" target="_blank" rel="noopener">官方 vision.py · Aligner</a> 与 <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/resolve/main/DeepSeek_V41_Tech_Report.pdf#page=8" target="_blank" rel="noopener">技术报告 §2.1.1</a>。</p>
+ </details>
+ <dialog id="t3d-dimension-dialog" class="t3d-dimension-dialog" aria-labelledby="t3d-dimension-title">
+  <div class="t3d-dimension-heading"><div><p>同一位置的一条向量</p><h3 id="t3d-dimension-title">从教学的 5 项，到实际的 1,024 项</h3></div><button type="button" data-t3d-dimension-close aria-label="关闭维度长度对照">关闭</button></div>
+  <p>维度就是一条向量包含的分量数。下面每格宽度相同：1,024 项的长度是 5 项的 <b>204.8 倍</b>。这里比较的是分量的<b>个数</b>，格子里不放数值——真实模型的这 1,024 个数由输入决定，本页不引用某一次具体运行的结果。</p>
+  <div class="t3d-length-example"><strong>教学 · 5 项</strong><div data-t3d-length-toy class="t3d-length-toy" aria-label="五个等宽分量格"></div></div>
+  <div class="t3d-length-caption"><strong>实际 · 1,024 项</strong><span>横向滚动，或用下方滑块定位</span></div>
+  <div class="t3d-length-scroll" data-t3d-length-scroll tabindex="0" role="region" aria-label="完整1024个等宽分量格，可横向滚动"><div data-t3d-length-real class="t3d-length-real" aria-hidden="true"></div></div>
+  <div class="t3d-length-ticks"><span>全长：第 1–1,024 项</span><span data-t3d-length-visible>当前窗口</span></div>
+  <p class="t3d-dimension-note">两条横条用同样宽的格子：上面 5 格，下面 1,024 格，横向拖动就能看出后者有多长。五维教学向量是独立算例，数值不对应实际向量的前五项。</p>
+ </dialog>
+</section>
+</section></dialog><footer class="project-credits"><div class="ai-disclaimer"><strong>AI 制作说明与免责声明</strong><p>本网页在人工主导下借助 AI 制作，作者非专业人士，目的是探索可视化交互式的学习方式。虽然参考了技术报告和官方资料，内容、公式与可视化仍可能存在错误、遗漏或过度简化，不能保证完全准确。具体结论以原始论文和官方实现为准。</p></div></footer><script src="assets/scripts/shared-core-b1c979d1aafc.js"></script><script src="assets/scripts/math-pathways-01-after-5df9e88450e7.js"></script></body></html>

@@ -21,8 +21,10 @@
   .index-label{display:flex;justify-content:space-between;padding-bottom:13px;color:var(--muted);font-size:11px;letter-spacing:.12em}
   .count{font-variant-numeric:tabular-nums;letter-spacing:.04em}
   .entry{display:flex;align-items:center;justify-content:space-between;gap:24px;
-         padding:25px 0 27px;border-block:1px solid var(--line);color:inherit;text-decoration:none;
+         margin-inline:-18px;padding:25px 18px 27px;border-block:1px solid var(--line);border-radius:3px;
+         color:inherit;text-decoration:none;
          transition:background-color .18s ease}
+  .entry + .entry{border-top:0}
   .category{display:block;margin-bottom:7px;color:var(--accent);font-size:11px;letter-spacing:.08em}
   .entry h2{margin:0;font-size:23px;line-height:1.4;font-weight:550;letter-spacing:-.025em}
   .description{margin-top:6px;color:var(--muted);font-size:14px;line-height:1.8}
@@ -31,6 +33,8 @@
   .entry:hover .read{text-decoration-color:currentColor}
   .entry:focus-visible{outline:2px solid var(--accent);outline-offset:6px;border-radius:2px}
   footer{margin-top:22px;color:var(--muted);font-size:11px;letter-spacing:.05em}
+  footer a{display:inline-block;color:inherit;text-underline-offset:4px;text-decoration-color:var(--line)}
+  footer a:hover{color:var(--accent);text-decoration-color:currentColor}
   @media (max-width:480px){body{padding:48px 26px 72px}nav{margin-top:40px}.entry{gap:18px}.description{font-size:13px}}
   @media (prefers-reduced-motion:reduce){.entry{transition:none}}
 </style>
@@ -42,17 +46,27 @@
       <p class="intro">一些页面，一些尝试。</p>
     </header>
     <nav aria-label="分享页面">
-      <div class="index-label"><span>内容索引</span><span class="count">01</span></div>
-      <a class="entry" href="ai-explain/dspark-gpt6pro-v2.html">
+      <div class="index-label"><span>内容索引</span><span class="count">02</span></div>
+      <a class="entry" href="ai-explain/dspark/dspark-gpt6pro-v2.html" aria-labelledby="dspark-title">
         <div>
           <span class="category">AI 原理 · 交互指南</span>
-          <h2>DSpark</h2>
+          <h2 id="dspark-title">DSpark</h2>
           <p class="description">让每一轮计算，多走几步。</p>
         </div>
         <span class="read" aria-hidden="true">阅读</span>
       </a>
+      <a class="entry" href="ai-explain/deepseek-v4.1-flash/guide.html" aria-labelledby="deepseek-v41-title">
+        <div>
+          <span class="category">AI 原理 · 交互指南</span>
+          <h2 id="deepseek-v41-title">DeepSeek V4.1 Flash</h2>
+          <p class="description">从 Transformer 出发，读懂模型的计算通路。</p>
+        </div>
+        <span class="read" aria-hidden="true">阅读</span>
+      </a>
     </nav>
-    <footer>页面陆续收录中。</footer>
+    <footer>
+      <a href="https://github.com/concentrate1/share" target="_blank" rel="noopener noreferrer">github.com/concentrate1/share ↗</a>
+    </footer>
   </main>
 </body>
 </html>
